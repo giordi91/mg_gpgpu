@@ -28,6 +28,6 @@ foreach(ff ${CU_SOURCES})
 endforeach()
 
 
-set(CUDA_NVCC_FLAGS  -gencode=arch=compute_50,code=sm_50  -O3 )  
+set(CUDA_NVCC_FLAGS -std=c++11 -gencode=arch=compute_61,code=sm_61 -O3 )  
 #adding library
 cuda_add_library(${THIS_PROJECT} STATIC ${SOURCES} ${CU_SOURCES}) 

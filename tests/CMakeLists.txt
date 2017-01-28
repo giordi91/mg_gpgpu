@@ -3,9 +3,6 @@ SET(THIS_PROJECT "mg_gpgpu_tests")
 project(${THIS_PROJECT})
 find_package(CUDA QUIET REQUIRED)
 
-#set(CUDA_SEPARABLE_COMPILATION ON)
-#list(APPEND CUDA_NVCC_FLAGS "--relocatable-device-code=true ")
-#find_package(CUDA QUIET REQUIRED)
 message("STATUS" "---- current cmake dir is ${CMAKE_CURRENT_SOURCE_DIR}")
 
 
@@ -24,25 +21,17 @@ endif()
 SET(CORE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 #find all the sources
 message("STATUS" "---- source dir is:  ${CORE_SOURCE_DIR}")
-file(GLOB SOURCES ${CORE_SOURCE_DIR}/*.cpp)
+file(GLOB SOURCES ${CORE_SOURCE_DIR}/*.cu)
 message("STATUS" "Found sources:")
 foreach(ff ${SOURCES})
     message("STATUS" \t${ff})
 endforeach()
 
 
-set(CUDA_NVCC_FLAGS  -gencode=arch=compute_50,code=sm_50 -O3 )  
+set(CUDA_NVCC_FLAGS -std=c++11 -gencode=arch=compute_61,code=sm_61 -O3 )  
 #adding library
 cuda_add_executable(${THIS_PROJECT} ${SOURCES}) 
 target_link_libraries(${THIS_PROJECT}  mg_gpgpu_core gmock gmock_main pthread /usr/local/cuda/lib64/libcudart.so )
 add_dependencies(${THIS_PROJECT} mg_gpgpu_core)
-#shared flags
-#set(SHARED_COMPILE_FLAGS "-std=c++11 -Wall -m64 -lgmock -lgmockfes_main -lpthread")
-#set(SHARED_LINK_FLAGS "-L/usr/local/cuda/lib64")
-
-#set_target_properties(${THIS_PROJECT} PROPERTIES 
-#		COMPILE_FLAGS "${SHARED_COMPILE_FLAGS} ${SPECIFIC_COMPILE_FLAGS}"
-#		LINK_FLAGS "${SHARED_LINK_FLAGS} ${SPECIFIC_COMPILE_FLAGS}")
-#
 
 
