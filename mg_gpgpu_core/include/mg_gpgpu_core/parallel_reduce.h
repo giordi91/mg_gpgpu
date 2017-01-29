@@ -103,30 +103,93 @@ T parallel_reduce( T* host_data, unsigned int element_count)
 
 }
 
+template<typename T, unsigned int WARP_SIZE>
+__inline__ __device__ T warp_reduce(T value)
+{
+    for (unsigned int offset = warpSize/2; offset>0; offset/=2)
+    {
+        value += __shfl_down(value, offset); 
+    }
+    return value;
+}
 
-//template <typename T>
-//__global__ void global_reduce_kernel_shuffle(T * d_out, T * d_in, unsigned int count)
-//{
-//    int myId = threadIdx.x + blockDim.x * blockIdx.x;
-//    int tid  = threadIdx.x;
-//
-//    // do reduction in global mem
-//	T value =0;
-//    for (unsigned int b = blockDim.x / 2; b > 0; b >>= 1)
-//    {
-//        if (tid < b)
-//        {
-//            for (unsigned int s = 32 / 2; s > 0; s >>= 1)
-//            {
-//                value +=  __shfl_down(value,s );
-//            }
-//        }
-//    }
-//
-//    // only thread 0 writes result for this block back to global mem
-//    if (tid == 0)
-//    {
-//        d_out[blockIdx.x] = sdata[tid];
-//    }
-//}
+template<typename T, unsigned int WARP_SIZE>
+__inline__ __device__ T block_reduce(T value)
+{
+    //static __shared__ unsigned int shared[WARP_SIZE];
+    //static __shared__ unsigned int shared[WARP_SIZE];
+	static __shared__ __align__(sizeof(T)) unsigned char shared_data[WARP_SIZE * sizeof(T)];
+    T *shared= reinterpret_cast<T *>(shared_data);
 
+    unsigned int lane = threadIdx.x % WARP_SIZE;
+    unsigned int warp_id = threadIdx.x / WARP_SIZE;
+    
+    value = warp_reduce<T, WARP_SIZE>(value);
+    if (lane ==0) shared[warp_id] = value;
+
+    __syncthreads();
+
+    value = (threadIdx.x < blockDim.x / WARP_SIZE) ? shared[lane] : 0;
+
+    if (warp_id == 0) value = warp_reduce<T, WARP_SIZE>(value);
+
+    return value;
+}
+
+
+
+template <typename T, unsigned int WARP_SIZE>
+__global__ void parallel_reduce_shuffle_kernel(T * d_in, T * d_out, unsigned int count)
+{
+
+    //this is a grid-stride loop, this allows to handle arbitrary
+    //size keeping maximum coaleshed access of memory,as showed in 
+    //parallel for all nvidia blog post.
+    //In short allow to tune for specific hardware by running specific amount of 
+    //blocks and threads to fully maximise occupancy
+    T sum = static_cast<T>(0);
+    for (int i = threadIdx.x + blockIdx.x * blockDim.x; 
+         i < count;
+         i+= (blockDim.x*gridDim.x))
+    {
+        sum += d_in[i];
+    }
+    
+    //now sum contains the reduction of the grid size element now we know that we are
+    //fitting the block width and we can proceed accordingly
+    sum = block_reduce<T,WARP_SIZE>(sum);
+    if (threadIdx.x==0)
+        d_out[blockIdx.x]=sum;
+}
+
+template<typename T>
+T parallel_reduce_shuffle( T* host_data, unsigned int element_count)
+{
+    //copying/allocating memory to device
+    T* in;
+    T* out;
+
+    //computing the wanted blocks
+    unsigned int threads = 512;
+    unsigned int blocks = min((element_count + threads - 1) / threads, 1024);
+
+    cudaMalloc( (void**)&in, element_count*sizeof(T));
+    cudaMalloc( (void**)&out, blocks*sizeof(T));
+    cudaMemcpy( in, host_data, element_count*sizeof(T), cudaMemcpyHostToDevice );
+
+
+
+    //kicking the kernels, first we reduce 
+    const unsigned int WARP_SIZE = 32;
+    parallel_reduce_shuffle_kernel<T,WARP_SIZE><<<blocks, threads>>>(in, out, element_count);
+    parallel_reduce_shuffle_kernel<T,WARP_SIZE><<<1, 1024>>>(out, out, blocks);
+
+    //computing result and freeing memory
+    T result;
+    cudaMemcpy(&result, out,sizeof(T), cudaMemcpyDeviceToHost);
+
+    cudaFree(in);
+    cudaFree(out);
+    return result;
+
+}
