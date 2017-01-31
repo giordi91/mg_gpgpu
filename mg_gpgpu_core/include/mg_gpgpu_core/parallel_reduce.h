@@ -151,6 +151,8 @@ __global__ void parallel_reduce_shuffle_kernel(const T * d_in, T * d_out, unsign
          i+= (blockDim.x*gridDim.x))
     {
         sum += __ldg(&d_in[i]);
+        if (threadIdx.x ==0 && blockIdx.x ==0)
+        { d_out[0] = static_cast<T>(0); }
     }
     
     //now sum contains the reduction of the grid size element now we know that we are
@@ -158,6 +160,31 @@ __global__ void parallel_reduce_shuffle_kernel(const T * d_in, T * d_out, unsign
     sum = block_reduce<T,WARP_SIZE>(sum);
     if (threadIdx.x==0)
         d_out[blockIdx.x]=sum;
+}
+
+template <typename T, unsigned int WARP_SIZE>
+__global__ void parallel_reduce_shuffle_atomic_kernel(const T * d_in, T * d_out, unsigned int count)
+{
+    //this is a grid-stride loop, this allows to handle arbitrary
+    //size keeping maximum coaleshed access of memory,as showed in 
+    //parallel for all nvidia blog post.
+    //In short allow to tune for specific hardware by running specific amount of 
+    //blocks and threads to fully maximise occupancy
+    T sum = static_cast<T>(0);
+    for (int i = threadIdx.x + blockIdx.x * blockDim.x; 
+         i < count;
+         i+= (blockDim.x*gridDim.x))
+    {
+        sum += __ldg(&d_in[i]);
+        if (threadIdx.x ==0 && blockIdx.x ==0)
+        { d_out[0] = static_cast<T>(0); }
+    }
+    
+    //now sum contains the reduction of the grid size element now we know that we are
+    //fitting the block width and we can proceed accordingly
+    sum = block_reduce<T,WARP_SIZE>(sum);
+    if (threadIdx.x==0)
+        atomicAdd(d_out,sum);
 }
 
 template<typename T>
