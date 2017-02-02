@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <mg_gpgpu_core/utils.h>
 
 template <typename T>
 __global__ void parallel_reduce_shared_kernel(T * d_out, const T * d_in, unsigned int count)
@@ -63,6 +64,7 @@ inline T parallel_reduce_shared( T* in ,T*out, unsigned int element_count)
 {
     unsigned int block_size = 1024;
 
+    std::swap(in,out);
     for(int i =element_count; i>1; )
     {
 
@@ -88,7 +90,7 @@ T parallel_reduce_shared_alloc( T* host_data, unsigned int element_count)
 
     unsigned int blocks = ((element_count%block_size) != 0)?(element_count/block_size) +1:
                                                             (element_count/block_size);
-    unsigned int size = blocks * block_size* sizeof(T);
+    unsigned int size =element_count*sizeof(T); 
 
     cudaMalloc( (void**)&device_data, size );
     //we know already how many blocks we are gonna kick in the first iteration
@@ -97,9 +99,7 @@ T parallel_reduce_shared_alloc( T* host_data, unsigned int element_count)
     cudaMalloc( (void**)&out_device_data, blocks*sizeof(T));
     cudaMemcpy( device_data , host_data, size, cudaMemcpyHostToDevice );
 
-    T * in = out_device_data;
-    T * out = device_data;
-    T result = parallel_reduce_shared<T>(in, out, element_count);
+    T result = parallel_reduce_shared<T>(device_data, out_device_data, element_count);
     return result;
 
 }
@@ -150,7 +150,7 @@ __global__ void parallel_reduce_shuffle_kernel(const T * d_in, T * d_out, unsign
          i < count;
          i+= (blockDim.x*gridDim.x))
     {
-        sum += __ldg(&d_in[i]);
+        sum += d_in[i];
         if (threadIdx.x ==0 && blockIdx.x ==0)
         { d_out[0] = static_cast<T>(0); }
     }
@@ -176,8 +176,6 @@ __global__ void parallel_reduce_shuffle_atomic_kernel(const T * d_in, T * d_out,
          i+= (blockDim.x*gridDim.x))
     {
         sum += __ldg(&d_in[i]);
-        if (threadIdx.x ==0 && blockIdx.x ==0)
-        { d_out[0] = static_cast<T>(0); }
     }
     
     //now sum contains the reduction of the grid size element now we know that we are
@@ -188,7 +186,7 @@ __global__ void parallel_reduce_shuffle_atomic_kernel(const T * d_in, T * d_out,
 }
 
 template<typename T>
-inline T parallel_reduce_shuffle( const T* in,T* out, unsigned int element_count)
+void  parallel_reduce_shuffle( const T* in,T* out, unsigned int element_count)
 {
 
     //computing the wanted blocks
@@ -197,13 +195,51 @@ inline T parallel_reduce_shuffle( const T* in,T* out, unsigned int element_count
 
     //kicking the kernels, first we reduce 
     const unsigned int WARP_SIZE = 32;
+
+    mg_gpgpu::utils::zero_out_kernel<T><<<blocks,threads>>>(out,element_count);
     parallel_reduce_shuffle_kernel<T,WARP_SIZE><<<blocks, threads>>>(in, out, element_count);
     parallel_reduce_shuffle_kernel<T,WARP_SIZE><<<1, 1024>>>(out, out, blocks);
+}
+template<typename T>
+void parallel_reduce_shuffle_atomic( const T* in,T* out, unsigned int element_count)
+{
 
+    //computing the wanted blocks
+    unsigned int threads = 512;
+    unsigned int blocks = min((element_count + threads - 1) / threads, 1024);
+
+    //kicking the kernels, first we reduce 
+    const unsigned int WARP_SIZE = 32;
+
+    mg_gpgpu::utils::zero_out_kernel<T><<<blocks,threads>>>(out,element_count);
+    parallel_reduce_shuffle_atomic_kernel<T,WARP_SIZE><<<blocks, threads>>>(in, out, element_count);
+
+
+}
+
+template<typename T>
+T parallel_reduce_shuffle_atomic_alloc( T* host_data, unsigned int element_count)
+{
+    //copying/allocating memory to device
+    T* in;
+    T* out;
+
+    //computing the wanted blocks
+    unsigned int threads = 512;
+    unsigned int blocks = min((element_count + threads - 1) / threads, 1024);
+
+    cudaMalloc( (void**)&in, element_count*sizeof(T));
+    cudaMalloc( (void**)&out, blocks*sizeof(T));
+    cudaMemcpy( in, host_data, element_count*sizeof(T), cudaMemcpyHostToDevice );
+
+
+    parallel_reduce_shuffle_atomic<T>(in, out, element_count);
     //computing result and freeing memory
     T result;
     cudaMemcpy(&result, out,sizeof(T), cudaMemcpyDeviceToHost);
 
+    cudaFree(in);
+    cudaFree(out);
     return result;
 
 }
@@ -224,7 +260,9 @@ T parallel_reduce_shuffle_alloc( T* host_data, unsigned int element_count)
     cudaMemcpy( in, host_data, element_count*sizeof(T), cudaMemcpyHostToDevice );
 
 
-    T result = parallel_reduce_shuffle<T>(in, out, element_count);
+    parallel_reduce_shuffle<T>(in, out, element_count);
+    T result;
+    cudaMemcpy(&result, out,sizeof(T), cudaMemcpyDeviceToHost);
 
     cudaFree(in);
     cudaFree(out);

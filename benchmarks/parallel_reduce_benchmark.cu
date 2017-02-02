@@ -38,7 +38,7 @@ void bench_reduce_algs()
     cudaEventRecord(start);
     for(int i =0 ; i < ITERATIONS; ++i)
     {
-	    float res= parallel_reduce_shared<float >(in,out, vec.size());
+	    parallel_reduce_shared<float >(in,out, vec.size());
     }
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -49,7 +49,7 @@ void bench_reduce_algs()
     cudaEventRecord(start);
     for(int i =0 ; i < ITERATIONS; ++i)
     {
-	    float res= parallel_reduce_shuffle<float >(in,out, vec.size());
+	    parallel_reduce_shuffle<float >(in,out, vec.size());
     }
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
