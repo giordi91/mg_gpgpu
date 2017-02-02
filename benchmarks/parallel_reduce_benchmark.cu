@@ -57,6 +57,16 @@ void bench_reduce_algs()
     std::cout<<"parallel_reduce_shuffle took: "<<
                 (milliseconds/ (static_cast<float>(ITERATIONS)))<< " ms"<<std::endl;
         
+    cudaEventRecord(start);
+    for(int i =0 ; i < ITERATIONS; ++i)
+    {
+	    parallel_reduce_shuffle_atomic<float >(in,out, vec.size());
+    }
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    std::cout<<"parallel_reduce_shuffle atomic took: "<<
+                (milliseconds/ (static_cast<float>(ITERATIONS)))<< " ms"<<std::endl;
 
 
     cudaFree(in);

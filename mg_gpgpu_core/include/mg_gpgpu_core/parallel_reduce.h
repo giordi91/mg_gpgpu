@@ -196,7 +196,7 @@ void  parallel_reduce_shuffle( const T* in,T* out, unsigned int element_count)
     //kicking the kernels, first we reduce 
     const unsigned int WARP_SIZE = 32;
 
-    mg_gpgpu::utils::zero_out_kernel<T><<<blocks,threads>>>(out,element_count);
+    //might wont an hardcoded kernel? I will bench and see if it helps
     parallel_reduce_shuffle_kernel<T,WARP_SIZE><<<blocks, threads>>>(in, out, element_count);
     parallel_reduce_shuffle_kernel<T,WARP_SIZE><<<1, 1024>>>(out, out, blocks);
 }
@@ -211,7 +211,7 @@ void parallel_reduce_shuffle_atomic( const T* in,T* out, unsigned int element_co
     //kicking the kernels, first we reduce 
     const unsigned int WARP_SIZE = 32;
 
-    mg_gpgpu::utils::zero_out_kernel<T><<<blocks,threads>>>(out,element_count);
+    mg_gpgpu::utils::zero_out_kernel<T><<<1,1>>>(out,1);
     parallel_reduce_shuffle_atomic_kernel<T,WARP_SIZE><<<blocks, threads>>>(in, out, element_count);
 
 
