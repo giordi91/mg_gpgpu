@@ -6,6 +6,30 @@ namespace mg_gpgpu
 {
 namespace utils
 {
+    //TODO fix build code, to define proper NDEBUG for release build, and opt
+    //utility method to check if the cuda operation was successiful
+    #define gpuErrchk(ans) { mg_gpgpu::utils::gpuAssert((ans), __FILE__, __LINE__); }
+    inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+    {
+       if (code != cudaSuccess) 
+       {
+          fprintf(stderr,"ERROR!! GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+          if (abort) exit(code);
+       }
+    }
+    //same as the abouve but should evaluate to no OP in release mode
+    #define gpuErrchkDebug(ans) { mg_gpgpu::utils::gpuAssertDebug((ans), __FILE__, __LINE__); }
+    inline void gpuAssertDebug(cudaError_t code, const char *file, int line, bool abort=true)
+    {
+       #ifndef NDEBUG
+       if (code != cudaSuccess) 
+       {
+          fprintf(stderr,"ERROR!! GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+          if (abort) exit(code);
+       }
+       #endif
+    }
+    
     //simple kernel to zero out a block of memory
     ///param data: pointer to the device data to zero out
     ///param size: size of the buffer
@@ -35,30 +59,16 @@ namespace utils
         }
     }
  
+    //TODO Make it grid size loop
+    template<typename T> 
+    __global__ void copy(T* in , T* out, unsigned int count)
+    {
+        unsigned int tid =threadIdx.x + (blockDim.x * blockIdx.x);
+        if( tid < count  )
+        { out[tid] = in[tid]; }
+    }
 
 
-    //utility method to check if the cuda operation was successiful
-    #define gpuErrchk(ans) { mg_gpgpu::utils::gpuAssert((ans), __FILE__, __LINE__); }
-    inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-    {
-       if (code != cudaSuccess) 
-       {
-          fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-          if (abort) exit(code);
-       }
-    }
-    //same as the abouve but should evaluate to no OP in release mode
-    #define gpuErrchkDebug(ans) { mg_gpgpu::utils::gpuAssertDebug((ans), __FILE__, __LINE__); }
-    inline void gpuAssertDebug(cudaError_t code, const char *file, int line, bool abort=true)
-    {
-       #ifndef NDEBUG
-       if (code != cudaSuccess) 
-       {
-          fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-          if (abort) exit(code);
-       }
-       #endif
-    }
 
 
     //////////////////////////////////////////////////////////////////////////////////////
@@ -83,6 +93,7 @@ namespace utils
         //alloc return memory
         auto ptr = std::unique_ptr<T[]>(new T[size]);
         cudaMemcpy( ptr.get(), d_data, size*sizeof(T), cudaMemcpyDeviceToHost);
+        cudaFree(d_data);
         
         return ptr;
     }
@@ -106,6 +117,7 @@ namespace utils
         //alloc return memory
         auto ptr = std::unique_ptr<T[]>(new T[size]);
         cudaMemcpy( ptr.get(), d_data, size*sizeof(T), cudaMemcpyDeviceToHost);
+        cudaFree(d_data);
         
         return ptr;
     }

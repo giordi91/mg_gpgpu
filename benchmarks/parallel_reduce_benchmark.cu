@@ -71,6 +71,4 @@ void bench_reduce_algs()
 
     cudaFree(in);
     cudaFree(out);
-
-
 }
