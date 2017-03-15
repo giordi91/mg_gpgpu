@@ -4,6 +4,9 @@
 #include <vector>
 using namespace testing;
 
+using mg_gpgpu::parallel_reduce_shared_alloc;
+using mg_gpgpu::parallel_reduce_shuffle_alloc;
+using mg_gpgpu::parallel_reduce_shuffle_atomic_alloc;
 
 TEST(cuda_parallel_reduce_shared,integer_numbers_from_1_to_n)
 {
@@ -243,5 +246,7 @@ TEST(cuda_parallel_reduce_shuffle_atomic,float_numbers_random_not_power_of_2)
     }
 
 	float res= parallel_reduce_shuffle_atomic_alloc<float >(vec.data(), vec.size());
-    ASSERT_NEAR(res , accum, 0.1f );
+    ASSERT_NEAR(res , accum, 0.001f );
+
 }
+

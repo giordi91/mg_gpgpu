@@ -2,6 +2,7 @@
 #include <vector>
 #include <mg_gpgpu_core/parallel_reduce.h>
 
+using namespace mg_gpgpu;
 
 template <unsigned int ITERATIONS>
 void bench_reduce_algs()

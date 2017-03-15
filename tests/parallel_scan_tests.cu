@@ -67,3 +67,58 @@ TEST(cuda_parallel_scan, hillis_steel_uint64_t)
     }
 }
 
+
+TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
+{
+    using lint = uint32_t;
+    std::vector<lint > data;
+    std::vector<lint> original;
+    uint64_t size = rand() %(10000000) ;
+
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        data[i] = rand() % 2 + 1;
+        original[i] = data[i];
+    }
+
+    auto ptr = data.data();
+    auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint>(ptr, size);
+    inclusive_scan<lint>(data);
+    for(int i =1; i < size; ++i)
+    {
+        if (data[i] != cudares[i])
+        {
+            std::cout<<data[i] << " "<<cudares[i]<<std::endl; 
+        }
+       ASSERT_TRUE( data[i] == cudares[i]);
+    }
+}
+TEST(cuda_parallel_scan,steam_scan_inclusive_64_bit_int )
+{
+    using lint = unsigned long long int;
+    std::vector<lint > data;
+    std::vector<lint> original;
+    uint64_t size = rand() %(100000) ;
+
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        data[i] = rand() % 2 + 1;
+        original[i] = data[i];
+    }
+
+    auto ptr = data.data();
+    auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint>(ptr, size);
+    inclusive_scan<lint>(data);
+    for(int i =1; i < size; ++i)
+    {
+        if (data[i] != cudares[i])
+        {
+            std::cout<<data[i] << " "<<cudares[i]<<std::endl; 
+        }
+       ASSERT_TRUE( data[i] == cudares[i]);
+    }
+}
