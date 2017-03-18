@@ -7,6 +7,9 @@ using namespace mg_gpgpu;
 template <unsigned int ITERATIONS>
 void bench_reduce_algs()
 {
+    std::cout<<"================================================"<<std::endl;
+    std::cout<<"                 REDUCE                         "<<std::endl;
+    std::cout<<"================================================"<<std::endl;
 
     const unsigned int DATA_SIZE = 1024*1024;
     //generate random data

@@ -5,7 +5,7 @@
 
 int main()
 {
-    const unsigned int ITERATIONS = 500;
+    const unsigned int ITERATIONS = 10;
     bench_reduce_algs<ITERATIONS>();
     bench_scan_algs<ITERATIONS>();
     return 0;

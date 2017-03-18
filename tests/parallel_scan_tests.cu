@@ -75,6 +75,7 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
     std::vector<lint> original;
     uint64_t size = rand() %(10000000) ;
 
+
     data.resize(size);
     original.resize(size);
     for (int i =0 ; i <size; ++i)
@@ -90,7 +91,7 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
     {
         if (data[i] != cudares[i])
         {
-            std::cout<<data[i] << " "<<cudares[i]<<std::endl; 
+            std::cout<<"index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl; 
         }
        ASSERT_TRUE( data[i] == cudares[i]);
     }

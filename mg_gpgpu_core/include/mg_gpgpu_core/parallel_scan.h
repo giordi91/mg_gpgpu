@@ -106,7 +106,11 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
 
     //reducing block wise
     int tId = blockDim.x * _gId + threadIdx.x;
-    T sum =  d_in[tId];
+    T sum = 0; 
+    if( tId< count)
+    {
+       sum= d_in[tId];
+    }
     
     ////TODO WARP SIZE 
     T res = block_reduce_masked<T,32>(sum, tId,count);    
@@ -128,36 +132,62 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
 }
 
 
-template<typename T, T SENTINEL_VALUE>
+/**
+ * @brief performs a scan inclusive, using dynamic blocks allocation and spin locking
+ * 
+ * This kernel is based on the paper:
+ * http://dl.acm.org/citation.cfm?id=2442539
+ * The main idea behind it, is you move the syncronization point in the algorithm as early as
+ * possible, in this case, we use a reduce in the blocks to feed the result in the next block.
+ * To make sure we process the blocks increasing order atomic id are generated and spin lock
+ * in global memory is used to stall the blocks, waiting for the previous reduce
+ *
+ * @tparam T data type to use in the algorithm
+ * @tparam SENTINEL_VALUE T value we want to use for the spin lock, as long this value is in memory
+ *                          the block won't proceed any further
+ * @tparam WARP_SIZE the size of a warp usually 32
+ * @param d_in device memory, to note this memory is not constant, and scan is in place
+ * @param d_intermediate intermediate device memory, this array has the same size as number of blocks
+ * @param count size of the d_in array
+ */
+template<typename T, T SENTINEL_VALUE >
 inline void parallel_stream_scan(T* d_in, T* d_intermediate, uint32_t count)
 {
 
-    //kicking the kernels, first we reduce 
     const uint32_t WARP_SIZE = 32;
     
-
-    //
-    uint32_t threads = 128;
+    uint32_t threads = 512;
     uint32_t blocks = ((count%threads) != 0)?(count/threads) +1 : (count/threads);
-    //here we have an extra one which will be our atomic value for blocks
     if (blocks == 0)
     {blocks =1;}
 
-    uint32_t threadsSet = 32;
+    uint32_t threadsSet = 128;
     uint32_t blocksSet = ((blocks/threadsSet) != 0)?(blocks/threadsSet) +1 : (blocks/threadsSet);
     if (blocksSet==0)
     {blocksSet=1;}
 
     //setting memory  
     mg_gpgpu::utils::set_value_kernel<T,SENTINEL_VALUE><<<blocksSet,threadsSet>>>(d_intermediate ,blocks);
+    cudaError_t err = cudaGetLastError();
+if (err != cudaSuccess) 
+    printf("Error: %s\n", cudaGetErrorString(err));
 
     //zeroing out last value , this might be optimized a little by having a bespoke kernel
     mg_gpgpu::utils::zero_out_kernel<<<1,1>>>(d_intermediate + blocks, 1);
+    err = cudaGetLastError();
+if (err != cudaSuccess) 
+    printf("Error: %s\n", cudaGetErrorString(err));
 
+    //here we use the shuffle block reduce, where each block reduces a warp in shared memory and then performs
+    //a final shuffle, intermediate result stored in shared memory
     uint32_t sharedMemorySize = (threads/WARP_SIZE) *sizeof(T);
 
     //kicking the kernel
     parallel_stream_scan_kernel<T,SENTINEL_VALUE><<<blocks,threads, sharedMemorySize>>>(d_in,d_intermediate, d_intermediate+blocks ,count,blocks);
+    err = cudaGetLastError();
+if (err != cudaSuccess) 
+    printf("Error: %s\n", cudaGetErrorString(err));
+
 
 }
 
@@ -168,10 +198,14 @@ inline void parallel_stream_scan(T* d_in, T* d_intermediate, uint32_t count)
 //////////////////////////////////////////////////////////////////////////////////////
 
 
-/** Alloc variant of hillis_steel
- * @param data: host data point to copy and process on gpu
- * @param count: element count of the buffer to process
- * @returns: unique pointer with result memory from the kernel
+/**
+ * @brief Alloc variant of hillis_steel
+ *
+ * @tparam T basic datatype of the objects to be processed
+ * @param data host data point to copy and process on gpu
+ * @param count element count of the buffer to process
+ *
+ * @return unique pointer with result memory from the kernel
  */
 template<typename T>
 std::unique_ptr<T[]> parallel_scan_hillis_steel_alloc(T* data, uint32_t count)
@@ -195,6 +229,15 @@ std::unique_ptr<T[]> parallel_scan_hillis_steel_alloc(T* data, uint32_t count)
 
 }
 
+/**
+ * @brief allocation variant of stream scan function
+ *
+ * @param data: Host pointer of the data to process
+ * @param count: size of the host pointer array
+ *
+ * @return unique pointer of the result memory, since is an smart pointer
+ *         ownership is transfered
+ */
 template<typename T>
 std::unique_ptr<T[]> parallel_stream_scan_alloc(T* data, uint32_t count)
 {
@@ -204,15 +247,17 @@ std::unique_ptr<T[]> parallel_stream_scan_alloc(T* data, uint32_t count)
     gpuErrchkDebug(cudaMemcpy( d_in, data, count*sizeof(T), cudaMemcpyHostToDevice ));
     //
     ////computing the wanted blocks
-    uint32_t threads = 128;
+    uint32_t threads = 512;
     uint32_t blocks = ((count%threads) != 0)?(count/threads) +1 : (count/threads);
     //here we have an extra one which will be our atomic value for blocks
     if (blocks == 0)
     {blocks =1;}
 
+    std::cout<<"using blocks "<<blocks<<std::endl;
     //compute_blocks(threads, blocks,count);
     gpuErrchkDebug(cudaMalloc( (void**)&d_intermediate,  (blocks + 1)*sizeof(T)));
 
+    //using maximum possible value as a sentinel
     constexpr T SENTINEL = std::numeric_limits<T>::max();
     parallel_stream_scan<T, SENTINEL>(d_in, d_intermediate, count);
 

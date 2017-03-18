@@ -221,19 +221,20 @@ __inline__ __device__ T block_reduce_masked(T value, uint32_t tId, uint32_t coun
     uint32_t warp_id = threadIdx.x / WARP_SIZE;
     
     //performing the reduce
-    value = warp_reduce<T, WARP_SIZE>(value);
+    value = warp_reduce_masked<T, WARP_SIZE>(value,tId,count);
     //now if this is the first thread in the warp we are going to write the value 
     //in shared memory, otherwise we do nothing
     if (lane ==0) shared[warp_id] = value;
+    __syncthreads();
 
     //making sure all the values from the warps have been written
-    __syncthreads();
 
     //now only the first warp is going to load all the values from the shared memory
     //and we perform a final warp reduce
     value = (threadIdx.x < blockDim.x / WARP_SIZE) ? shared[lane] : 0;
 
-    if (warp_id == 0) value = warp_reduce_masked<T, WARP_SIZE>(value, tId,count);
+    //if (warp_id == 0) value = warp_reduce_masked<T, WARP_SIZE>(value, tId,count);
+    if (warp_id == 0) value = warp_reduce<T, WARP_SIZE>(value);
 
     //value now holds the value of the whole reduced block
     return value;
@@ -347,7 +348,7 @@ void parallel_reduce_shuffle_atomic( const T* in,T* out, uint32_t count)
 {
 
     //computing the wanted blocks
-    uint32_t threads = 512;
+    uint32_t threads = 1024;
     //TODO !! if less then 1024 blocks are run the shuffle won't work, since we will have part of a 
     //warp of full warp that wont need to shuffle or will move trash values since the threads
     //would be masked out and we don't know what value there is in the register
@@ -374,7 +375,7 @@ void parallel_reduce_shuffle_atomic( const T* in,T* out, uint32_t count)
 template<typename T>
 T parallel_reduce_shared_alloc( T* host_data, uint32_t count)
 {
-    uint32_t block_size = 512;
+    uint32_t block_size = 1024;
     //declaring gpu pointers
     T* device_data;
     T* out_device_data;
@@ -403,6 +404,9 @@ T parallel_reduce_shared_alloc( T* host_data, uint32_t count)
  * @parm host_data: pointer to host memory to load
  * @parm count: how many element we need to process
  */
+
+
+
 template<typename T>
 T parallel_reduce_shuffle_atomic_alloc( T* host_data, uint32_t count)
 {
@@ -444,7 +448,7 @@ T parallel_reduce_shuffle_alloc( T* host_data, uint32_t count)
     T* out;
 
     //computing the wanted blocks
-    uint32_t threads = 512;
+    uint32_t threads = 1024;
     uint32_t blocks = min((count + threads - 1) / threads, 1024);
 
     cudaMalloc( (void**)&in, count*sizeof(T));
