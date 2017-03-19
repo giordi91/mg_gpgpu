@@ -196,6 +196,50 @@ __inline__ __device__ T block_reduce(T value)
     return value;
 }
 
+template<typename T, uint32_t WARP_SIZE>
+__inline__ __device__ T block_reduce_deb(T value,uint32_t tId,uint32_t gId)
+{
+    //allocating shared memory per block
+    //here since we are allocating unsigned char (8 bit, 1 byte) we multipleply the size
+    //of the type T (which is in byte) times the warp size.
+    //Now we only need to be able to store one element per warp, since each warp will 
+    //reduce inthe registers and not in shared memory
+	static __shared__ __align__(sizeof(T)) unsigned char shared_data[WARP_SIZE * sizeof(T)];
+    T *shared= reinterpret_cast<T *>(shared_data);
+
+    //the lane is the id in the warp size register, meaning between 0-31
+    uint32_t lane = threadIdx.x % WARP_SIZE;
+    uint32_t warp_id = threadIdx.x / WARP_SIZE;
+    
+    //performing the reduce
+    value = warp_reduce<T, WARP_SIZE>(value);
+    //now if this is the first thread in the warp we are going to write the value 
+    //in shared memory, otherwise we do nothing
+    if (lane ==0) shared[warp_id] = value;
+    //if (lane ==0 && warp_id == 0 && gId == 0)
+    //{
+    //    printf( "gpu: ");
+    //    for (int i =0; i <16;i++)
+    //    {
+    //    
+    //        printf(" %d ", shared[i]);
+    //    }
+    //    printf("\n");
+    //
+    //}
+
+    //making sure all the values from the warps have been written
+    __syncthreads();
+
+    //now only the first warp is going to load all the values from the shared memory
+    //and we perform a final warp reduce
+    value = (threadIdx.x < blockDim.x / WARP_SIZE) ? shared[lane] : 0;
+
+    if (warp_id == 0) value = warp_reduce<T, WARP_SIZE>(value);
+
+    //value now holds the value of the whole reduced block
+    return value;
+}
 /** 
 * This method performs the same work as the regular block_reduce but it keeps tracks
 * of the thread global id, so that if we get in the extra allocated threads we actually mask 
@@ -448,7 +492,7 @@ T parallel_reduce_shuffle_alloc( T* host_data, uint32_t count)
     T* out;
 
     //computing the wanted blocks
-    uint32_t threads = 1024;
+    uint32_t threads = 512;
     uint32_t blocks = min((count + threads - 1) / threads, 1024);
 
     cudaMalloc( (void**)&in, count*sizeof(T));

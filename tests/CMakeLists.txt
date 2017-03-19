@@ -28,7 +28,7 @@ foreach(ff ${SOURCES})
 endforeach()
 
 
-set(CUDA_NVCC_FLAGS -std=c++11 -gencode=arch=compute_61,code=sm_61 -O3 )  
+set(CUDA_NVCC_FLAGS -std=c++11 -gencode=arch=compute_61,code=sm_61 -O3 -Xptxas -dlcm=cg)  
 #adding library
 cuda_add_executable(${THIS_PROJECT} ${SOURCES}) 
 target_link_libraries(${THIS_PROJECT}  mg_gpgpu_core gmock gmock_main pthread /usr/local/cuda/lib64/libcudart.so )

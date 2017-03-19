@@ -55,7 +55,7 @@ inline T* parallel_scan_hillis_steel(T* d_in, T* d_out, uint32_t count)
 
 
 template<typename T, T SENTINEL_VALUE>
-__inline__ __device__ void intra_block_barrier(int tid, 
+__device__ void intra_block_barrier(int tid, 
                                                int gid, 
                                                volatile T* d_intermediate, 
                                                T curr_value, 
@@ -67,6 +67,7 @@ __inline__ __device__ void intra_block_barrier(int tid,
         if (gid==0)
         {
             d_intermediate[0] = curr_value; 
+            *out = p;
         } 
         else
         {
@@ -77,10 +78,10 @@ __inline__ __device__ void intra_block_barrier(int tid,
                 p = d_intermediate[gid -1];
             }
             d_intermediate[gid] = p+curr_value;
+            *out = p;
         }
     }
     __syncthreads();
-    *out = p;
 }
 
 
@@ -102,8 +103,14 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
 {
 
 	//getting block id dynamiccally, not using the one cuda provides
-   	uint32_t _gId = get_dynamic_block_id(atom); 
-
+   	//uint32_t _gId = get_dynamic_block_id(atom); 
+	__shared__ uint32_t gId;
+    if(threadIdx.x == 0)
+    {
+        gId= atomicAdd(atom,1);
+    }
+    __syncthreads();
+    uint32_t _gId = gId; 
     //reducing block wise
     int tId = blockDim.x * _gId + threadIdx.x;
     T sum = 0; 
@@ -112,23 +119,50 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
        sum= d_in[tId];
     }
     
-    ////TODO WARP SIZE 
-    T res = block_reduce_masked<T,32>(sum, tId,count);    
-    T prev_result =0;
-    intra_block_barrier<T,SENTINEL_VALUE>(threadIdx.x, _gId, d_intermediate, res,&prev_result);
-
-    //perform scan in the block
+    //TODO WARP SIZE 
+    //T res = block_reduce_masked<T,32>(sum, tId,count);    
+    T res = block_reduce_deb<T,32>(sum, tId, _gId);    
+    //T prev_result =0;
+    __shared__ T prev;
+    intra_block_barrier<T,SENTINEL_VALUE>(threadIdx.x, _gId, d_intermediate, res,&prev);
+    if(threadIdx.x == 0)
+    {
+        printf(" %d ", _gId);
+    }
+    
+    __syncthreads(); 
+    if (threadIdx.x == 0 && _gId >0)
+    {
+        prev = d_intermediate[_gId-1]; 
+    }
+    if (threadIdx.x == 0 && _gId ==0)
+    {
+        prev =0; 
+    }
+    
+    ////perform scan in the block
     for(int i =1; i<blockDim.x; i<<=1)
     {
-		if(threadIdx.x>= i)
+		if(threadIdx.x>= i && (tId <count) )
 		{ d_in[tId] = d_in[tId] + d_in[tId-i]; }
         __syncthreads(); 
     }
 
 	//TODO remove the branch
 	//here we add the result from the previous block
-    if (_gId !=0)
-    { d_in[tId] += d_intermediate[_gId-1]; } 
+    __syncthreads(); 
+    if ( tId< count && _gId > 0)
+    { 
+        //if (tId==513)
+        //{
+        //    //printf("gpu index 513 %d %d %d \n", d_in[tId], prev_result, d_intermediate[_gId-1] ); 
+        //    //printf("gpu index 513 %d %d %d \n", d_in[tId], prev_result, d_intermediate[_gId-1] ); 
+        //}
+        
+        //d_in[tId] += d_intermediate[_gId-1]; 
+        d_in[tId] += prev; 
+    } 
+    // d_in[tId] += prev_result; } 
 }
 
 
@@ -156,7 +190,8 @@ inline void parallel_stream_scan(T* d_in, T* d_intermediate, uint32_t count)
 
     const uint32_t WARP_SIZE = 32;
     
-    uint32_t threads = 512;
+    uint32_t threads = 1024;
+    std::cout<<SENTINEL_VALUE<<std::endl;
     uint32_t blocks = ((count%threads) != 0)?(count/threads) +1 : (count/threads);
     if (blocks == 0)
     {blocks =1;}
@@ -247,7 +282,7 @@ std::unique_ptr<T[]> parallel_stream_scan_alloc(T* data, uint32_t count)
     gpuErrchkDebug(cudaMemcpy( d_in, data, count*sizeof(T), cudaMemcpyHostToDevice ));
     //
     ////computing the wanted blocks
-    uint32_t threads = 512;
+    uint32_t threads = 1024;
     uint32_t blocks = ((count%threads) != 0)?(count/threads) +1 : (count/threads);
     //here we have an extra one which will be our atomic value for blocks
     if (blocks == 0)
