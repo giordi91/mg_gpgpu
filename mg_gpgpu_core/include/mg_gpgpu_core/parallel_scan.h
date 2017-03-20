@@ -54,6 +54,75 @@ inline T* parallel_scan_hillis_steel(T* d_in, T* d_out, uint32_t count)
 }
 
 
+template <typename T>
+__global__ void parallel_reduce_full_array_kernel(T* d_in, uint32_t hop, uint32_t count)
+{
+
+    //computing global index thread and index inside the block
+    int myId = (threadIdx.x + blockDim.x * blockIdx.x);
+    bool cnd = (hop ==0);
+    int shift = 2 * cnd + (2<<hop) * !cnd; 
+    myId =  myId*shift;
+     
+    int exponent = 2<<(hop) ;
+    int exponent2 =1*cnd +  ((2<<(hop-1)) * !cnd);
+    int array_id = myId + exponent -1;
+    if(array_id< count)
+    {
+        d_in[array_id] += d_in[myId + exponent2 -1  ] ;
+    }
+}
+
+template<typename T>
+__global__ void  parallel_scan_blelloch_kernel(T* d_in, uint32_t hop, uint32_t count)
+{
+    int myId = (threadIdx.x + blockDim.x * blockIdx.x);
+    bool cnd = (hop ==0);
+    int shift = 2 * cnd + (2<<hop) * !cnd; 
+    int k =  myId*shift;
+
+    int exponent = 2<<(hop) ;
+    int exponent2 =1*cnd +  ((2<<(hop-1)) * !cnd);
+    int array_id = myId + exponent -1;
+    if(array_id < count)
+    {
+        T temp = d_in[k + exponent2 -1];
+        d_in[k + exponent2 -1] = d_in[k + exponent -1];
+        d_in[k + exponent -1 ] += temp  ;
+    
+    }
+
+
+}
+
+template<typename T>
+void  parallel_scan_blelloch(T* d_in, uint32_t count)
+{
+    
+    //TODO parallel reduce full array kernel!!!
+    //parallel_reduce_full_array<T>( d_in,  count);
+    //k
+    //
+    mg_gpgpu::utils::zero_out_kernel<<<1,1>>>(d_in+ (count -1),1);
+
+
+    ////computing the wanted blocks
+    uint32_t threads = 512;
+    uint32_t blocks = ((count/threads) != 0)?(count/threads) +1 : (count/threads);
+    if (blocks == 0)
+    {
+        blocks =1; 
+    }
+    //computing the log needed
+    int lg  =  static_cast<int>(std::log2(count));
+
+    for(int l =lg; l>=0; l--)
+    {
+        parallel_scan_blelloch_kernel<T><<<threads, blocks>>>(d_in, l, count);
+    } 
+}
+
+
 template<typename T, T SENTINEL_VALUE>
 __device__ void intra_block_barrier(int tid, 
                                                int gid, 
@@ -83,6 +152,7 @@ __device__ void intra_block_barrier(int tid,
     }
     __syncthreads();
 }
+
 
 
 template<typename T>
@@ -125,10 +195,10 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
     //T prev_result =0;
     __shared__ T prev;
     intra_block_barrier<T,SENTINEL_VALUE>(threadIdx.x, _gId, d_intermediate, res,&prev);
-    if(threadIdx.x == 0)
-    {
-        printf(" %d ", _gId);
-    }
+    //if(threadIdx.x == 0)
+    //{
+    //    printf(" %d ", _gId);
+    //}
     
     __syncthreads(); 
     if (threadIdx.x == 0 && _gId >0)
@@ -140,13 +210,24 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
         prev =0; 
     }
     
-    ////perform scan in the block
-    for(int i =1; i<blockDim.x; i<<=1)
+    //perform scan in the block
+    //for(int i =1; i<blockDim.x; i<<=1)
+    //{
+	//	if(threadIdx.x>= i && (tId <count) )
+	//	{ d_in[tId] = d_in[tId] + d_in[tId-i]; }
+    //    __syncthreads(); 
+    //}
+    //TODO SUPER SLOW FIX THIS, implement blelloch block scan
+    if (threadIdx.x ==0)
     {
-		if(threadIdx.x>= i && (tId <count) )
-		{ d_in[tId] = d_in[tId] + d_in[tId-i]; }
-        __syncthreads(); 
+        for ( uint32_t i =1; i < blockDim.x; ++i)
+        {
+            uint32_t id = _gId * blockDim.x + i;
+            d_in[id]  += d_in[id-1];
+        }
     }
+
+    __syncthreads();
 
 	//TODO remove the branch
 	//here we add the result from the previous block
