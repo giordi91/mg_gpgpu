@@ -386,4 +386,59 @@ TEST(cuda_parallel_reduce,full_array_block_reduce_random_32 )
     run_random_reduce_test<uint32_t,32>();
 }
 
+TEST(cuda_parallel_reduce,full_array_block_reduce_multi_block_1024 )
+{
 
+    using T = uint32_t;
+    std::vector<T > data;
+    std::vector<T> original;
+    uint64_t size = 1024*10;
+
+
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        data[i] = (i+1) % 1024;
+        original[i] = data[i];
+    }
+
+    T* d_in;
+    gpuErrchkDebug(cudaMalloc( (void**)&d_in,  size*sizeof(T)));
+    gpuErrchkDebug(cudaMemcpy( d_in, data.data(), size*sizeof(T), cudaMemcpyHostToDevice ));
+    
+    //kicking only a single block, since this mainly for debugging purpose
+    uint32_t threads = 1024;
+    uint32_t blocks = size/1024;
+    std::cout<<"kicking blocks "<<blocks<<std::endl;
+    //uint32_t blocks = 1;
+
+    mg_gpgpu::parallel_reduce_full_array_wrap_kernel<T><<<blocks,threads>>>(d_in,size); 
+
+    auto res =std::unique_ptr<T[]>(new T[size]);
+    gpuErrchkDebug(cudaMemcpy( res.get(), d_in, size*sizeof(T), cudaMemcpyDeviceToHost));
+    cudaDeviceSynchronize();
+
+
+
+    //serial hardcoded computation
+    auto c_size = 1024;
+    uint32_t lg = log2(float(c_size)) ;
+    for(int i =0; i<lg; i++ )
+    {
+        for(int id =0; id < (c_size-1); id += pow(2,(i+1)))
+        {
+            data[id + pow(2,(i+1)) -1] += data[id + pow(2,i) -1];
+        }
+    }
+    for (int i =0; i<data.size(); i++)
+    {
+        if (data[i%1024]!= res.get()[i])
+        {
+            std::cout<<"index "<<i <<" "<<data[i]<<" " <<res.get()[i]<<std::endl; 
+            ASSERT_EQ(data[i%1024], res.get()[i]);
+            break;
+        }
+    }
+    cudaFree(d_in);
+}

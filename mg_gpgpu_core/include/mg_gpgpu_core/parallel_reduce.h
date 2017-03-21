@@ -25,26 +25,27 @@ template <typename T>
 inline __device__ void parallel_reduce_full_array_kernel(T* d_in,  uint32_t count, uint32_t blockId)
 {
 
-    int blockSize = blockDim.x;
-    uint32_t counter =0;
+    uint32_t globalOffset = blockId * blockDim.x;
+    uint32_t boundaryCondition = blockDim.x*(blockId+1);
     //TODO precompute some variables like blcokId+1*blocksize and
     //try to use shared  memory for the reduction to reduce global memory
     //bandwith usage
-    for(int i =1; i<blockSize;i<<=1,counter++ )
+    uint32_t counter =0;
+    for(int i =1; i<blockDim.x;i<<=1,counter++ )
     {
 
         uint32_t hop = counter;
         //computing global index thread and index inside the block
-        int myId = (threadIdx.x + blockDim.x * blockId);
+        //int myId = (threadIdx.x + blockDim.x * blockId);
         bool cnd = (hop ==0);
         int shift = 2 * cnd + (2<<hop) * !cnd; 
-        myId =  myId*shift;
+        uint32_t myId =  (threadIdx.x*shift) + globalOffset;
          
         int exponent = 2<<(hop) ;
         int exponent2 =1*cnd +  ((2<<(hop-1)) * !cnd);
         int array_id = myId + exponent -1;
 
-        if(array_id< (blockSize*(blockId+1)))
+        if(array_id< boundaryCondition)
         {
             d_in[array_id] += d_in[myId + exponent2 -1  ] ;
         }
