@@ -7,6 +7,61 @@ namespace mg_gpgpu
 {
 
 /**
+ * @brief performs a scan in a block, inplace, using a tree alghorithm 
+ *
+ * This alghoritms performs a tree reduction algorithm as outlined in blelloch
+ * scan, this is the very reason for its existance, peculiarity is this kernel
+ * is meant to be run on a single block, so if you want to use that to reduce multiple
+ * block, there will be the need of an intermediate reduction step at the end 
+ *
+ * @tparam T
+ * @param d_in : the input data on the device
+ * @param count : the size of the data to be processed
+ * @param blockId : the data of the block we need to process
+ *
+ * @return 
+ */
+template <typename T>
+inline __device__ void parallel_reduce_full_array_kernel(T* d_in,  uint32_t count, uint32_t blockId)
+{
+
+    int blockSize = blockDim.x;
+    uint32_t counter =0;
+    //TODO precompute some variables like blcokId+1*blocksize and
+    //try to use shared  memory for the reduction to reduce global memory
+    //bandwith usage
+    for(int i =1; i<blockSize;i<<=1,counter++ )
+    {
+
+        uint32_t hop = counter;
+        //computing global index thread and index inside the block
+        int myId = (threadIdx.x + blockDim.x * blockId);
+        bool cnd = (hop ==0);
+        int shift = 2 * cnd + (2<<hop) * !cnd; 
+        myId =  myId*shift;
+         
+        int exponent = 2<<(hop) ;
+        int exponent2 =1*cnd +  ((2<<(hop-1)) * !cnd);
+        int array_id = myId + exponent -1;
+
+        if(array_id< (blockSize*(blockId+1)))
+        {
+            d_in[array_id] += d_in[myId + exponent2 -1  ] ;
+        }
+        __syncthreads();
+    }
+}
+
+/** 
+ * @brief wrapper function for the full_array_kernel, to kick one for each block
+ */
+template <typename T>
+__global__ void parallel_reduce_full_array_wrap_kernel(T* d_in,  uint32_t count )
+{
+    parallel_reduce_full_array_kernel<T>(d_in, count,blockIdx.x );
+}
+
+/**
  * This version of parallel reduce utilized the shared memory to do the kernel accumulation
  * per block, once the whole reduction is done, only thread 0 in the block is going to write 
  * to global memory, this method is good because reduce memory pressure on global memory
@@ -448,9 +503,6 @@ T parallel_reduce_shared_alloc( T* host_data, uint32_t count)
  * @parm host_data: pointer to host memory to load
  * @parm count: how many element we need to process
  */
-
-
-
 template<typename T>
 T parallel_reduce_shuffle_atomic_alloc( T* host_data, uint32_t count)
 {
@@ -508,6 +560,34 @@ T parallel_reduce_shuffle_alloc( T* host_data, uint32_t count)
     cudaFree(out);
     return result;
 
+}
+
+/**
+ * @brief alloc variant of full_array_reduce, check the non alloc version for doc
+ *
+ * @tparam T
+ * @param data : host data to be processed
+ * @param count: host data size
+ *
+ * @return : unique_ptr of the resulting processed data from the gpu
+ */
+template <typename T>
+std::unique_ptr<T[]> parallel_reduce_full_array_alloc(T* data, uint32_t count )
+{
+    T* d_in;
+    gpuErrchkDebug(cudaMalloc( (void**)&d_in,  count*sizeof(T)));
+    gpuErrchkDebug(cudaMemcpy( d_in, data, count*sizeof(T), cudaMemcpyHostToDevice ));
+    
+    //kicking only a single block, since this mainly for debugging purpose
+    uint32_t threads = count;
+    uint32_t blocks = 1;
+
+    parallel_reduce_full_array_wrap_kernel<T><<<blocks,threads>>>(d_in,count); 
+
+    auto ptr =std::unique_ptr<T[]>(new T[count]);
+    gpuErrchkDebug(cudaMemcpy( ptr.get(), d_in, count*sizeof(T), cudaMemcpyDeviceToHost));
+
+    return ptr;
 }
 }//end mg_gpgpu namespace
 

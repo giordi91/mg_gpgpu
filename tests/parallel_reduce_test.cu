@@ -2,6 +2,7 @@
 #include <iostream>
 #include <mg_gpgpu_core/parallel_reduce.h>
 #include <vector>
+#include <cmath>
 using namespace testing;
 
 using mg_gpgpu::parallel_reduce_shared_alloc;
@@ -67,7 +68,8 @@ TEST(cuda_parallel_reduce_shared,float_numbers_random)
     }
 
 	float res= parallel_reduce_shared_alloc<float >(vec.data(), vec.size());
-    ASSERT_FLOAT_EQ(res , accum );
+    //ASSERT_FLOAT_EQ(res , accum );
+    ASSERT_NEAR(res , accum, 0.001f );
 }
 
 TEST(cuda_parallel_reduce_shared,float_numbers_random_not_power_of_2)
@@ -85,7 +87,8 @@ TEST(cuda_parallel_reduce_shared,float_numbers_random_not_power_of_2)
     }
 
 	float res= parallel_reduce_shared_alloc<float >(vec.data(), vec.size());
-    ASSERT_FLOAT_EQ(res , accum );
+    //ASSERT_FLOAT_EQ(res , accum );
+    ASSERT_NEAR(res , accum, 0.001f );
 }
 
 TEST(cuda_parallel_reduce_shuffle,integer_numbers_from_1_to_n)
@@ -147,7 +150,8 @@ TEST(cuda_parallel_reduce_shuffle,float_numbers_random)
     }
 
 	float res= parallel_reduce_shuffle_alloc<float >(vec.data(), vec.size());
-    ASSERT_FLOAT_EQ(res , accum );
+    //ASSERT_FLOAT_EQ(res , accum );
+    ASSERT_NEAR(res , accum, 0.001f );
 }
 
 TEST(cuda_parallel_reduce_shuffle,float_numbers_random_not_power_of_2)
@@ -249,4 +253,137 @@ TEST(cuda_parallel_reduce_shuffle_atomic,float_numbers_random_not_power_of_2)
     ASSERT_NEAR(res , accum, 0.001f );
 
 }
+
+template<typename T>
+void full_array_scan_serial( std::vector<T>& data)
+{
+    auto size = data.size();
+    uint32_t lg = log2(float(size)) ;
+    for(int i =0; i<lg; i++ )
+    {
+        for(int id =0; id < (size-1); id += pow(2,(i+1)))
+        {
+            data[id + pow(2,(i+1)) -1] += data[id + pow(2,i) -1];
+        }
+    }
+}
+
+template<typename T, int BLOCK_SIZE>
+void run_increasing_reduce_test()
+{
+    std::vector<T > data;
+    std::vector<T> original;
+    uint64_t size = BLOCK_SIZE;
+
+
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        data[i] = i+1;
+        original[i] = data[i];
+    }
+
+    auto res =mg_gpgpu::parallel_reduce_full_array_alloc<T>(data.data(), data.size());
+    full_array_scan_serial(data);
+    for (int i =0; i<data.size(); i++)
+    {
+        if (data[i]!= res.get()[i])
+        {
+            std::cout<<"index "<<i <<" "<<data[i]<<" " <<res.get()[i]<<std::endl; 
+        }
+        ASSERT_EQ(data[i], res.get()[i]);
+    }
+
+}
+template<typename T, int BLOCK_SIZE>
+void run_random_reduce_test()
+{
+    std::vector<T > data;
+    std::vector<T> original;
+    uint64_t size = BLOCK_SIZE;
+
+
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        data[i] = rand() % 10;
+        original[i] = data[i];
+    }
+
+    auto res =mg_gpgpu::parallel_reduce_full_array_alloc<T>(data.data(), data.size());
+    full_array_scan_serial(data);
+    for (int i =0; i<data.size(); i++)
+    {
+        if (data[i]!= res.get()[i])
+        {
+            std::cout<<"index "<<i <<" "<<data[i]<<" " <<res.get()[i]<<std::endl; 
+        }
+        ASSERT_EQ(data[i], res.get()[i]);
+    }
+
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_1024 )
+{
+    run_increasing_reduce_test<uint32_t,1024>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_512)
+{
+    run_increasing_reduce_test<uint32_t,512>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_256 )
+{
+    run_increasing_reduce_test<uint32_t,256>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_128 )
+{
+    run_increasing_reduce_test<uint32_t,128>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_64 )
+{
+    run_increasing_reduce_test<uint32_t,64>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_32 )
+{
+    run_increasing_reduce_test<uint32_t,32>();
+}
+
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_random_1024 )
+{
+    run_random_reduce_test<uint32_t,1024>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_random_512)
+{
+    run_random_reduce_test<uint32_t,512>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_random_256 )
+{
+    run_random_reduce_test<uint32_t,256>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_random_128 )
+{
+    run_random_reduce_test<uint32_t,128>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_random_64 )
+{
+    run_random_reduce_test<uint32_t,64>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_random_32 )
+{
+    run_random_reduce_test<uint32_t,32>();
+}
+
 

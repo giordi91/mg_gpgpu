@@ -54,25 +54,6 @@ inline T* parallel_scan_hillis_steel(T* d_in, T* d_out, uint32_t count)
 }
 
 
-template <typename T>
-__global__ void parallel_reduce_full_array_kernel(T* d_in, uint32_t hop, uint32_t count)
-{
-
-    //computing global index thread and index inside the block
-    int myId = (threadIdx.x + blockDim.x * blockIdx.x);
-    bool cnd = (hop ==0);
-    int shift = 2 * cnd + (2<<hop) * !cnd; 
-    myId =  myId*shift;
-     
-    int exponent = 2<<(hop) ;
-    int exponent2 =1*cnd +  ((2<<(hop-1)) * !cnd);
-    int array_id = myId + exponent -1;
-    if(array_id< count)
-    {
-        d_in[array_id] += d_in[myId + exponent2 -1  ] ;
-    }
-}
-
 template<typename T>
 __global__ void  parallel_scan_blelloch_kernel(T* d_in, uint32_t hop, uint32_t count)
 {
@@ -272,7 +253,6 @@ inline void parallel_stream_scan(T* d_in, T* d_intermediate, uint32_t count)
     const uint32_t WARP_SIZE = 32;
     
     uint32_t threads = 1024;
-    std::cout<<SENTINEL_VALUE<<std::endl;
     uint32_t blocks = ((count%threads) != 0)?(count/threads) +1 : (count/threads);
     if (blocks == 0)
     {blocks =1;}
@@ -369,7 +349,6 @@ std::unique_ptr<T[]> parallel_stream_scan_alloc(T* data, uint32_t count)
     if (blocks == 0)
     {blocks =1;}
 
-    std::cout<<"using blocks "<<blocks<<std::endl;
     //compute_blocks(threads, blocks,count);
     gpuErrchkDebug(cudaMalloc( (void**)&d_intermediate,  (blocks + 1)*sizeof(T)));
 

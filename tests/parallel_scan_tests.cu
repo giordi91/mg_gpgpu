@@ -74,8 +74,6 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
     std::vector<lint > data;
     std::vector<lint> original;
     uint64_t size = rand() %(10000000) ;
-    std::cout<<"size of array "<<size<<std::endl;
-
 
     data.resize(size);
     original.resize(size);
@@ -186,20 +184,23 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
 //    }
 //}
 
-TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_1024_block )
-{
-    using lint = uint32_t;
-    std::vector<lint > data;
-    std::vector<lint> original;
-    uint64_t size = rand() %(10000000) ;
-    std::cout<<"size of array "<<size<<std::endl;
 
 
-    data.resize(size);
-    original.resize(size);
-    for (int i =0 ; i <size; ++i)
-    {
-        data[i] = rand() % 2 + 1;
-        original[i] = data[i];
-    }
-}
+//TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_1024_block )
+//{
+//    using lint = uint32_t;
+//    std::vector<lint > data;
+//    std::vector<lint> original;
+//    uint64_t size = rand() %(10000000) ;
+//    std::cout<<"size of array "<<size<<std::endl;
+//
+//
+//    data.resize(size);
+//    original.resize(size);
+//    for (int i =0 ; i <size; ++i)
+//    {
+//        data[i] = rand() % 2 + 1;
+//        original[i] = data[i];
+//    }
+//
+//}
