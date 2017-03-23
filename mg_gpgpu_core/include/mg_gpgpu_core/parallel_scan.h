@@ -53,56 +53,43 @@ inline T* parallel_scan_hillis_steel(T* d_in, T* d_out, uint32_t count)
     return d_out;
 }
 
-
 template<typename T>
-__global__ void  parallel_scan_blelloch_kernel(T* d_in, uint32_t hop, uint32_t count)
+__device__ inline void  parallel_scan_blelloch_kernel(T* d_in, int lg, uint32_t count, int blockId)
 {
+
+    //uint32_t globalOffset = blockId * blockDim.x;
+    
     int myId = (threadIdx.x + blockDim.x * blockIdx.x);
-    bool cnd = (hop ==0);
-    int shift = 2 * cnd + (2<<hop) * !cnd; 
-    int k =  myId*shift;
-
-    int exponent = 2<<(hop) ;
-    int exponent2 =1*cnd +  ((2<<(hop-1)) * !cnd);
-    int array_id = myId + exponent -1;
-    if(array_id < count)
-    {
-        T temp = d_in[k + exponent2 -1];
-        d_in[k + exponent2 -1] = d_in[k + exponent -1];
-        d_in[k + exponent -1 ] += temp  ;
-    
-    }
-
-
-}
-
-template<typename T>
-void  parallel_scan_blelloch(T* d_in, uint32_t count)
-{
-    
-    //TODO parallel reduce full array kernel!!!
-    //parallel_reduce_full_array<T>( d_in,  count);
-    //k
-    //
-    mg_gpgpu::utils::zero_out_kernel<<<1,1>>>(d_in+ (count -1),1);
-
-
-    ////computing the wanted blocks
-    uint32_t threads = 512;
-    uint32_t blocks = ((count/threads) != 0)?(count/threads) +1 : (count/threads);
-    if (blocks == 0)
-    {
-        blocks =1; 
-    }
-    //computing the log needed
-    int lg  =  static_cast<int>(std::log2(count));
-
     for(int l =lg; l>=0; l--)
     {
-        parallel_scan_blelloch_kernel<T><<<threads, blocks>>>(d_in, l, count);
-    } 
+        uint32_t hop = l;
+        bool cnd = (hop ==0);
+        int shift = 2 * cnd + (2<<hop) * !cnd; 
+        int k =  myId*shift;
+
+        int exponent = 2<<(hop) ;
+        int exponent2 =1*cnd +  ((2<<(hop-1)) * !cnd);
+        int array_id = myId + exponent -1;
+        if(array_id < count)
+        {
+            T temp = d_in[k + exponent2 -1];
+            d_in[k + exponent2 -1] = d_in[k + exponent -1];
+            d_in[k + exponent -1 ] += temp  ;
+        
+        }
+        __syncthreads();
+    }
 }
 
+
+/** 
+ * @brief wrapper function for the blellock_array_kernel, to kick one for each block
+ */
+template <typename T>
+__global__ void parallel_scan_blelloch_wrap_kernel(T* d_in,  uint32_t lg, uint32_t count )
+{
+    parallel_scan_blelloch_kernel<T>(d_in, lg, count,blockIdx.x );
+}
 
 template<typename T, T SENTINEL_VALUE>
 __device__ void intra_block_barrier(int tid, 
@@ -269,7 +256,7 @@ if (err != cudaSuccess)
     printf("Error: %s\n", cudaGetErrorString(err));
 
     //zeroing out last value , this might be optimized a little by having a bespoke kernel
-    mg_gpgpu::utils::zero_out_kernel<<<1,1>>>(d_intermediate + blocks, 1);
+    mg_gpgpu::utils::zero_out_kernel<T><<<1,1>>>(d_intermediate + blocks, 1);
     err = cudaGetLastError();
 if (err != cudaSuccess) 
     printf("Error: %s\n", cudaGetErrorString(err));
@@ -355,11 +342,40 @@ std::unique_ptr<T[]> parallel_stream_scan_alloc(T* data, uint32_t count)
     //using maximum possible value as a sentinel
     constexpr T SENTINEL = std::numeric_limits<T>::max();
     parallel_stream_scan<T, SENTINEL>(d_in, d_intermediate, count);
+    cudaError_t err = cudaGetLastError();
+    //if (err != cudaSuccess) 
+    //    printf("Error: %s\n", cudaGetErrorString(err));
 
     auto ptr =std::unique_ptr<T[]>(new T[count]);
     gpuErrchkDebug(cudaMemcpy( ptr.get(), d_in, count*sizeof(T), cudaMemcpyDeviceToHost));
 
     return ptr;
+}
+
+template<typename T>
+std::unique_ptr<T[]> parallel_scan_blelloch_alloc(T* data, uint32_t count)
+{
+    T* d_in;
+    gpuErrchkDebug(cudaMalloc( (void**)&d_in,  count*sizeof(T)));
+    gpuErrchkDebug(cudaMemcpy( d_in, data, count*sizeof(T), cudaMemcpyHostToDevice ));
+
+    //one block with given size of element, this kernel is supposed to work on one block only
+    uint32_t threads = count;
+    uint32_t blocks = 1;
+    
+    //computing the log needed
+    //TODO not really an expensive operation but would be nice to try compute it myself,
+    //leveraging the fact (maybe) i know is a power of two
+    int lg  =  static_cast<int>(std::log2(count));
+    parallel_reduce_full_array_wrap_kernel<T><<<blocks,threads>>>(d_in,count); 
+
+    mg_gpgpu::utils::zero_out_kernel<T><<<1,1>>>(d_in+ (count -1),1);
+    parallel_scan_blelloch_wrap_kernel<T><<<blocks, threads>>>(d_in, lg, count);
+
+    auto ptr =std::unique_ptr<T[]>(new T[count]);
+    gpuErrchkDebug(cudaMemcpy( ptr.get(), d_in, count*sizeof(T), cudaMemcpyDeviceToHost));
+    return ptr;
+
 }
 
 }//end mg_gpgpu namespace

@@ -40,7 +40,8 @@ namespace utils
              i < size;
              i+= (blockDim.x*gridDim.x))
         {
-            data[i] = static_cast<T>(0);
+            //data[i] = static_cast<T>(0);
+            data[i] = 0;
         }
     }
 

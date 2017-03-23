@@ -355,6 +355,36 @@ TEST(cuda_parallel_reduce,full_array_block_reduce_32 )
     run_increasing_reduce_test<uint32_t,32>();
 }
 
+TEST(cuda_parallel_reduce,full_array_block_reduce_1024_uint64 )
+{
+    run_increasing_reduce_test<uint64_t,1024>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_512_uint64)
+{
+    run_increasing_reduce_test<uint64_t,512>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_256_uint64 )
+{
+    run_increasing_reduce_test<uint64_t,256>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_128_uint64 )
+{
+    run_increasing_reduce_test<uint64_t,128>();
+}
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_64_uint64 )
+{
+    run_increasing_reduce_test<uint64_t,64>();
+}
+
+
+TEST(cuda_parallel_reduce,full_array_block_reduce_32_uint64 )
+{
+    run_increasing_reduce_test<uint64_t,32>();
+}
 
 TEST(cuda_parallel_reduce,full_array_block_reduce_random_1024 )
 {
@@ -410,8 +440,6 @@ TEST(cuda_parallel_reduce,full_array_block_reduce_multi_block_1024 )
     //kicking only a single block, since this mainly for debugging purpose
     uint32_t threads = 1024;
     uint32_t blocks = size/1024;
-    std::cout<<"kicking blocks "<<blocks<<std::endl;
-    //uint32_t blocks = 1;
 
     mg_gpgpu::parallel_reduce_full_array_wrap_kernel<T><<<blocks,threads>>>(d_in,size); 
 

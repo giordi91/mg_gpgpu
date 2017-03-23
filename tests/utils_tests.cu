@@ -45,3 +45,13 @@ TEST(cuda_utils, zero_out_int)
     }
 
 }
+TEST(cuda_utils, zero_out_uint64_t)
+{
+    auto&& vec = gen_random_vector<uint64_t>(10000);
+    auto res = mg_gpgpu::utils::zero_out_alloc<uint64_t>(vec.data(), vec.size());    
+    for (int i = 0; i < vec.size(); ++i)
+    {
+        ASSERT_EQ(res[i],0);
+    }
+
+}

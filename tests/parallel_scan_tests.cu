@@ -66,7 +66,89 @@ TEST(cuda_parallel_scan, hillis_steel_uint64_t)
        ASSERT_TRUE( data[i] == cudares[i]);
     }
 }
+template<typename T,int BLOCK_SIZE>
+void test_blelloc_block_scan()
+{
+    std::vector<T > data;
+    std::vector<T> original;
+    uint32_t size = BLOCK_SIZE;
 
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        data[i] = i+1;
+        original[i] = data[i];
+    }
+
+    auto cudares = mg_gpgpu::parallel_scan_blelloch_alloc<T>(data.data(), data.size());
+    inclusive_scan<T>(data);
+
+    for(int i =1; i < data.size(); ++i)
+    {
+        if (data[i-1] != cudares[i])
+        {
+            std::cout<<"ERROR index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl; 
+        }
+       ASSERT_TRUE( data[i-1] == cudares[i]);
+    }
+
+
+}
+
+TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_1024_block )
+{
+    test_blelloc_block_scan<uint32_t,1024>();
+}
+
+TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_512_block )
+{
+    test_blelloc_block_scan<uint32_t,512>();
+}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_256_block )
+{
+    test_blelloc_block_scan<uint32_t,256>();
+}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_128_block )
+{
+    test_blelloc_block_scan<uint32_t,128>();
+}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_64_block )
+{
+    test_blelloc_block_scan<uint32_t,64>();
+}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_32_block )
+{
+    test_blelloc_block_scan<uint32_t,32>();
+
+}
+
+//TODO check why 64 bit doesnt work
+TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_1024_block )
+{
+    test_blelloc_block_scan<uint64_t ,1024>();
+}
+
+//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_512_block )
+//{
+//    test_blelloc_block_scan<uint64_t,512>();
+//}
+//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_256_block )
+//{
+//    test_blelloc_block_scan<uint64_t,256>();
+//}
+//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_128_block )
+//{
+//    test_blelloc_block_scan<uint64_t,128>();
+//}
+//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_64_block )
+//{
+//    test_blelloc_block_scan<uint64_t,64>();
+//}
+//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_32_block )
+//{
+//    test_blelloc_block_scan<uint64_t,32>();
+//}
 
 TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
 {
@@ -84,66 +166,6 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
     }
 
 
-    //uint32_t bs = 512;
-    //uint32_t accum =0;
-    //uint32_t mult =1;
-    ////for(int i =0; i < size; ++i)
-    ////{
-    ////    if (!( i< (bs*mult)))
-    ////    {
-    ////        std::cout<<" "<<accum<< " "; 
-    ////        accum=0;
-    ////        mult++;
-    ////    }
-    ////    accum += data[i];
-    ////    if (mult > 5)
-    ////    {
-    ////        break; 
-    ////    }
-    ////}
-    //for(int i =0; i <512; ++i)
-    //{
-    //    accum += data[i]; 
-    //}
-    //std::cout<<accum<<" ";
-    //accum=0;
-    //for(int i =512; i <1024; ++i)
-    //{
-    //    accum += data[i]; 
-    //}
-    //std::cout<<accum<<" ";
-    //accum=0;
-    //for(int i =1024; i <1536; ++i)
-    //{
-    //    accum += data[i]; 
-    //}
-    //std::cout<<accum<<" ";
-    //accum=0;
-    //for(int i =1536; i <2048; ++i)
-    //{
-    //    accum += data[i]; 
-    //}
-    //std::cout<<accum<<" "<<std::endl;
-
-    //std::cout<<"cpu: ";
-    //for(int i =0; i <= bs; ++i)
-    //{
-
-    //    if (!( i< (32*mult)))
-    //    {
-    //        std::cout<<" "<<accum<< " "; 
-    //        accum=0;
-    //        mult++;
-    //    }
-
-    //        accum += data[i];
-    //    
-    //    if (mult > 17)
-    //    {
-    //        break; 
-    //    }
-    //}
-    std::cout<<std::endl;
     auto ptr = data.data();
     auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint>(ptr, size);
     inclusive_scan<lint>(data);
@@ -186,21 +208,3 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
 
 
 
-//TEST(cuda_parallel_scan,blelloc_block_scan_uint32_t_1024_block )
-//{
-//    using lint = uint32_t;
-//    std::vector<lint > data;
-//    std::vector<lint> original;
-//    uint64_t size = rand() %(10000000) ;
-//    std::cout<<"size of array "<<size<<std::endl;
-//
-//
-//    data.resize(size);
-//    original.resize(size);
-//    for (int i =0 ; i <size; ++i)
-//    {
-//        data[i] = rand() % 2 + 1;
-//        original[i] = data[i];
-//    }
-//
-//}

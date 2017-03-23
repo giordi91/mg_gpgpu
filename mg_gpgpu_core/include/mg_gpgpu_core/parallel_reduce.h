@@ -70,6 +70,8 @@ __global__ void parallel_reduce_full_array_wrap_kernel(T* d_in,  uint32_t count 
  * @param d_in: the buffer with the source data
  * @param count: how many elements we need to process
  */
+
+
 template <typename T>
 __global__ void parallel_reduce_shared_kernel(T * d_out, const T * d_in, uint32_t count)
 {

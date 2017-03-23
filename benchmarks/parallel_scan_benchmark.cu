@@ -37,7 +37,7 @@ void bench_scan_algs()
     cudaEventRecord(start);
     for (int i =0; i< ITERATIONS; ++i)
     {
-        //auto cudares = mg_gpgpu::parallel_scan_hillis_steel<uint32_t>(in,out, size);
+        auto cudares = mg_gpgpu::parallel_scan_hillis_steel<uint32_t>(in,out, size);
     }
 
     cudaEventRecord(stop);
@@ -50,7 +50,7 @@ void bench_scan_algs()
     milliseconds = 0;
     ////computing the wanted blocks
     uint32_t* d_intermediate;
-    uint32_t threads = 512;
+    uint32_t threads = 1024;
     uint32_t blocks = ((size%threads) != 0)?(size/threads) +1 : (size/threads);
     //here we have an extra one which will be our atomic value for blocks
     if (blocks == 0)
@@ -74,6 +74,7 @@ void bench_scan_algs()
 
 
 
-    //cudaFree(in);
-    //cudaFree(out);
+    cudaFree(in);
+    cudaFree(out);
+    cudaFree(d_intermediate);
 }
