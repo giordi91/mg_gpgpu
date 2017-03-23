@@ -50,7 +50,7 @@ void bench_scan_algs()
     milliseconds = 0;
     ////computing the wanted blocks
     uint32_t* d_intermediate;
-    uint32_t threads = 1024;
+    uint32_t threads = 512;
     uint32_t blocks = ((size%threads) != 0)?(size/threads) +1 : (size/threads);
     //here we have an extra one which will be our atomic value for blocks
     if (blocks == 0)
@@ -74,7 +74,6 @@ void bench_scan_algs()
 
 
 
-    cudaFree(in);
-    cudaFree(out);
-    cudaFree(d_intermediate);
+    //cudaFree(in);
+    //cudaFree(out);
 }

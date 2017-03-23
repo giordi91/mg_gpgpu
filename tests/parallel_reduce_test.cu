@@ -445,7 +445,6 @@ TEST(cuda_parallel_reduce,full_array_block_reduce_multi_block_1024 )
 
     auto res =std::unique_ptr<T[]>(new T[size]);
     gpuErrchkDebug(cudaMemcpy( res.get(), d_in, size*sizeof(T), cudaMemcpyDeviceToHost));
-    cudaDeviceSynchronize();
 
 
 

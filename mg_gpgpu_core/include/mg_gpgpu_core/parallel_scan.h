@@ -59,22 +59,24 @@ __device__ inline void  parallel_scan_blelloch_kernel(T* d_in, int lg, uint32_t 
 
     //uint32_t globalOffset = blockId * blockDim.x;
     
-    int myId = (threadIdx.x + blockDim.x * blockIdx.x);
+    //int myId = (threadIdx.x + blockDim.x * blockIdx.x);
     for(int l =lg; l>=0; l--)
     {
         uint32_t hop = l;
         bool cnd = (hop ==0);
         int shift = 2 * cnd + (2<<hop) * !cnd; 
-        int k =  myId*shift;
+        int myId =  threadIdx.x*shift;
 
         int exponent = 2<<(hop) ;
         int exponent2 =1*cnd +  ((2<<(hop-1)) * !cnd);
         int array_id = myId + exponent -1;
+
+
         if(array_id < count)
         {
-            T temp = d_in[k + exponent2 -1];
-            d_in[k + exponent2 -1] = d_in[k + exponent -1];
-            d_in[k + exponent -1 ] += temp  ;
+            T temp = d_in[myId + exponent2 -1];
+            d_in[myId + exponent2 -1] = d_in[array_id];
+            d_in[array_id ] += temp  ;
         
         }
         __syncthreads();
@@ -374,6 +376,8 @@ std::unique_ptr<T[]> parallel_scan_blelloch_alloc(T* data, uint32_t count)
 
     auto ptr =std::unique_ptr<T[]>(new T[count]);
     gpuErrchkDebug(cudaMemcpy( ptr.get(), d_in, count*sizeof(T), cudaMemcpyDeviceToHost));
+
+    cudaFree(d_in);
     return ptr;
 
 }

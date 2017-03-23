@@ -129,26 +129,26 @@ TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_1024_block )
     test_blelloc_block_scan<uint64_t ,1024>();
 }
 
-//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_512_block )
-//{
-//    test_blelloc_block_scan<uint64_t,512>();
-//}
-//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_256_block )
-//{
-//    test_blelloc_block_scan<uint64_t,256>();
-//}
-//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_128_block )
-//{
-//    test_blelloc_block_scan<uint64_t,128>();
-//}
-//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_64_block )
-//{
-//    test_blelloc_block_scan<uint64_t,64>();
-//}
-//TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_32_block )
-//{
-//    test_blelloc_block_scan<uint64_t,32>();
-//}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_512_block )
+{
+    test_blelloc_block_scan<uint64_t,512>();
+}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_256_block )
+{
+    test_blelloc_block_scan<uint64_t,256>();
+}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_128_block )
+{
+    test_blelloc_block_scan<uint64_t,128>();
+}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_64_block )
+{
+    test_blelloc_block_scan<uint64_t,64>();
+}
+TEST(cuda_parallel_scan,blelloc_block_scan_uint64_t_32_block )
+{
+    test_blelloc_block_scan<uint64_t,32>();
+}
 
 TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
 {
@@ -178,6 +178,7 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
        ASSERT_TRUE( data[i] == cudares[i]);
     }
 }
+
 //TEST(cuda_parallel_scan,steam_scan_inclusive_64_bit_int )
 //{
 //    using lint = unsigned long long int;
@@ -205,6 +206,3 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
 //       ASSERT_TRUE( data[i] == cudares[i]);
 //    }
 //}
-
-
-
