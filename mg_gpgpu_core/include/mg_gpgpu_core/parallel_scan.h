@@ -171,13 +171,10 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
     //}
     
     __syncthreads(); 
+    prev=0;
     if (threadIdx.x == 0 && _gId >0)
     {
         prev = d_intermediate[_gId-1]; 
-    }
-    if (threadIdx.x == 0 && _gId ==0)
-    {
-        prev =0; 
     }
     
     //perform scan in the block
@@ -196,6 +193,12 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
             d_in[id]  += d_in[id-1];
         }
     }
+    //parallel_reduce_full_array_kernel<T>(d_in,count,_gId); 
+    //__syncthreads();
+    //if(threadIdx.x == (blockDim.x -1))
+    //{ d_in[tId] = static_cast<T>(0); }
+    //__syncthreads();
+    //parallel_scan_blelloch_kernel(d_in, 14, count, _gId);
 
     __syncthreads();
 

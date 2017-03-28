@@ -155,7 +155,8 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
     using lint = uint32_t;
     std::vector<lint > data;
     std::vector<lint> original;
-    uint64_t size = rand() %(10000000) ;
+    //uint64_t size = rand() %(10000000) ;
+    uint64_t size = 1024 *16 ;
 
     data.resize(size);
     original.resize(size);
@@ -166,6 +167,7 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
     }
 
 
+    std::cout<<std::log2(size)<<std::endl;
     auto ptr = data.data();
     auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint>(ptr, size);
     inclusive_scan<lint>(data);
