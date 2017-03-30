@@ -175,7 +175,8 @@ inline T parallel_reduce_shared( T* d_in ,T*d_out, uint32_t count)
 template<typename T, uint32_t WARP_SIZE>
 __inline__ __device__ T warp_reduce(T value)
 {
-    for (uint32_t offset = warpSize/2; offset>0; offset/=2)
+    #pragma unroll
+    for (uint32_t offset = WARP_SIZE/2; offset>0; offset/=2)
     {
         //here we pass down the value accumulating from the warp
         //in a thread. What is happening here is that the since the SIMD
@@ -201,7 +202,8 @@ template<typename T, uint32_t WARP_SIZE>
 __inline__ __device__ T warp_reduce_masked(T value, uint32_t tId, uint32_t count)
 
 {
-    for (uint32_t offset = warpSize/2; offset>0; offset/=2)
+    #pragma unroll
+    for (uint32_t offset = WARP_SIZE/2; offset>0; offset/=2)
     {
         //here we pass down the value accumulating from the warp
         //in a thread. What is happening here is that the since the SIMD

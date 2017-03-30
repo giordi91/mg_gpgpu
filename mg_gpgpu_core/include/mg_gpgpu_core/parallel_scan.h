@@ -141,82 +141,51 @@ __device__ inline uint32_t get_dynamic_block_id(T* mem_ptr)
 template<typename T, T SENTINEL_VALUE>
 __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate, T* atom,uint32_t count,uint32_t blocks)
 {
+    __shared__ T temp[2048]; 
+	//getting block id dynamically, not using the one Cuda provides
+    uint32_t _gId= get_dynamic_block_id(atom);
 
-	//getting block id dynamiccally, not using the one cuda provides
-   	//uint32_t _gId = get_dynamic_block_id(atom); 
-	__shared__ uint32_t gId;
-    if(threadIdx.x == 0)
-    {
-        gId= atomicAdd(atom,1);
-    }
-    __syncthreads();
-    uint32_t _gId = gId; 
     //reducing block wise
     int tId = blockDim.x * _gId + threadIdx.x;
-    T sum = 0; 
-    if( tId< count)
-    {
-       sum= d_in[tId];
-    }
-    
-    //TODO WARP SIZE 
-    //T res = block_reduce_masked<T,32>(sum, tId,count);    
-    T res = block_reduce_deb<T,32>(sum, tId, _gId);    
-    //T prev_result =0;
+    if ( tId< count)
+    { temp[ threadIdx.x] =  d_in[tId] ;  }
+    else
+    { temp[ threadIdx.x] =  0 ;  }
+
+    //load value into registers
+    T sum = temp[threadIdx.x]; 
+    T res = block_reduce<T,32>(sum);    
+
+    //spin locking barrier for intra block sync
     __shared__ T prev;
     intra_block_barrier<T,SENTINEL_VALUE>(threadIdx.x, _gId, d_intermediate, res,&prev);
-    //if(threadIdx.x == 0)
-    //{
-    //    printf(" %d ", _gId);
-    //}
     
-    __syncthreads(); 
-    prev=0;
-    if (threadIdx.x == 0 && _gId >0)
-    {
-        prev = d_intermediate[_gId-1]; 
-    }
     
-    //perform scan in the block
-    //for(int i =1; i<blockDim.x; i<<=1)
-    //{
-	//	if(threadIdx.x>= i && (tId <count) )
-	//	{ d_in[tId] = d_in[tId] + d_in[tId-i]; }
-    //    __syncthreads(); 
-    //}
-    //TODO SUPER SLOW FIX THIS, implement blelloch block scan
-    if (threadIdx.x ==0)
-    {
-        for ( uint32_t i =1; i < blockDim.x; ++i)
-        {
-            uint32_t id = _gId * blockDim.x + i;
-            d_in[id]  += d_in[id-1];
-        }
-    }
-    //parallel_reduce_full_array_kernel<T>(d_in,count,_gId); 
-    //__syncthreads();
-    //if(threadIdx.x == (blockDim.x -1))
-    //{ d_in[tId] = static_cast<T>(0); }
-    //__syncthreads();
-    //parallel_scan_blelloch_kernel(d_in, 14, count, _gId);
+    int thid = threadIdx.x;  
+    int n =1024;
+    int pout = 0, pin = 1;  
 
-    __syncthreads();
+    #pragma unroll 
+    for (int offset = 1; offset < n; offset *= 2)  
+    {  
+        pout = 1 - pout; // swap double buffer indices  
+        pin = 1 - pout;  
 
-	//TODO remove the branch
+        //bool cnd =(thid >= offset);
+        //T A = temp[pin*n+thid]+ temp[pin*n+thid - (offset*cnd)];
+        //T B = temp[pin*n+thid];
+        //temp[pout*n+thid] = (A * cnd) + (B * (!cnd));
+
+        if (thid >= offset)  
+            temp[pout*n+thid] = temp[pin*n+thid]+ temp[pin*n+thid - offset];  
+        else  
+            temp[pout*n+thid] = temp[pin*n+thid];  
+        __syncthreads();  
+    }   
+
 	//here we add the result from the previous block
-    __syncthreads(); 
-    if ( tId< count && _gId > 0)
-    { 
-        //if (tId==513)
-        //{
-        //    //printf("gpu index 513 %d %d %d \n", d_in[tId], prev_result, d_intermediate[_gId-1] ); 
-        //    //printf("gpu index 513 %d %d %d \n", d_in[tId], prev_result, d_intermediate[_gId-1] ); 
-        //}
-        
-        //d_in[tId] += d_intermediate[_gId-1]; 
-        d_in[tId] += prev; 
-    } 
-    // d_in[tId] += prev_result; } 
+    if ( tId< count )
+    { d_in[tId] = temp[pout*n + thid]  +prev; } 
 }
 
 
