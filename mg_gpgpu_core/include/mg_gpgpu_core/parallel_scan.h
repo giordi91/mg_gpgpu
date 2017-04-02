@@ -138,7 +138,7 @@ __device__ inline uint32_t get_dynamic_block_id(T* mem_ptr)
 }
 
 
-template<typename T, T SENTINEL_VALUE>
+template<typename T, T SENTINEL_VALUE, uint32_t BLOCK_SIZE>
 __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate, T* atom,uint32_t count,uint32_t blocks)
 {
     __shared__ T temp[2048]; 
@@ -162,11 +162,11 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
     
     
     int thid = threadIdx.x;  
-    int n =1024;
+    int n =BLOCK_SIZE;
     int pout = 0, pin = 1;  
 
     #pragma unroll 
-    for (int offset = 1; offset < n; offset *= 2)  
+    for (int offset = 1; offset < BLOCK_SIZE; offset *= 2)  
     {  
         pout = 1 - pout; // swap double buffer indices  
         pin = 1 - pout;  
@@ -207,13 +207,13 @@ __global__ void parallel_stream_scan_kernel(T* d_in, volatile T* d_intermediate,
  * @param d_intermediate intermediate device memory, this array has the same size as number of blocks
  * @param count size of the d_in array
  */
-template<typename T, T SENTINEL_VALUE >
+template<typename T, T SENTINEL_VALUE, uint32_t BLOCK_SIZE >
 inline void parallel_stream_scan(T* d_in, T* d_intermediate, uint32_t count)
 {
 
     const uint32_t WARP_SIZE = 32;
     
-    uint32_t threads = 1024;
+    uint32_t threads = BLOCK_SIZE;
     uint32_t blocks = ((count%threads) != 0)?(count/threads) +1 : (count/threads);
     if (blocks == 0)
     {blocks =1;}
@@ -240,7 +240,7 @@ if (err != cudaSuccess)
     uint32_t sharedMemorySize = (threads/WARP_SIZE) *sizeof(T);
 
     //kicking the kernel
-    parallel_stream_scan_kernel<T,SENTINEL_VALUE><<<blocks,threads, sharedMemorySize>>>(d_in,d_intermediate, d_intermediate+blocks ,count,blocks);
+    parallel_stream_scan_kernel<T,SENTINEL_VALUE, BLOCK_SIZE><<<blocks,threads, sharedMemorySize>>>(d_in,d_intermediate, d_intermediate+blocks ,count,blocks);
     err = cudaGetLastError();
 if (err != cudaSuccess) 
     printf("Error: %s\n", cudaGetErrorString(err));
@@ -304,7 +304,7 @@ std::unique_ptr<T[]> parallel_stream_scan_alloc(T* data, uint32_t count)
     gpuErrchkDebug(cudaMemcpy( d_in, data, count*sizeof(T), cudaMemcpyHostToDevice ));
     //
     ////computing the wanted blocks
-    uint32_t threads = 1024;
+    constexpr uint32_t threads =1024;
     uint32_t blocks = ((count%threads) != 0)?(count/threads) +1 : (count/threads);
     //here we have an extra one which will be our atomic value for blocks
     if (blocks == 0)
@@ -315,7 +315,7 @@ std::unique_ptr<T[]> parallel_stream_scan_alloc(T* data, uint32_t count)
 
     //using maximum possible value as a sentinel
     constexpr T SENTINEL = std::numeric_limits<T>::max();
-    parallel_stream_scan<T, SENTINEL>(d_in, d_intermediate, count);
+    parallel_stream_scan<T, SENTINEL,threads>(d_in, d_intermediate, count);
     cudaError_t err = cudaGetLastError();
     //if (err != cudaSuccess) 
     //    printf("Error: %s\n", cudaGetErrorString(err));
