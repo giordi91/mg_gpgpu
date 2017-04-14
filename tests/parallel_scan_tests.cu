@@ -1,19 +1,30 @@
 #include <gmock/gmock.h>
 #include <iostream>
 #include <fstream>
-#include <mg_gpgpu_core/parallel_scan.h>
+#include <mg_gpgpu_core/scan.h>
 #include <vector>
 using namespace testing;
 
 //commented for the time being, need to find a way to make a custom target for it
-template<typename T>
+    template<typename T>
 void inclusive_scan(std::vector<T>& data)
 {
 
     for (int i =1; i<data.size(); ++i)
     {
-        data[i] += data[i-1];    
+        data[i] += data[i-1];
     }
+
+}
+    template<typename T>
+void exclusive_scan(std::vector<T>& data)
+{
+    inclusive_scan<T>(data);
+    for (int i =data.size()-1; i>=1; i--)
+    {
+        data[i] = data[i-1];
+    }
+    data[0]=0;
 
 }
 
@@ -36,7 +47,7 @@ TEST(cuda_parallel_scan, hillis_steel_uint32_t)
     inclusive_scan<uint32_t>(data);
     for(int i =1; i < size; ++i)
     {
-       ASSERT_TRUE( data[i] == cudares[i]);
+        ASSERT_TRUE( data[i] == cudares[i]);
     }
 }
 
@@ -61,12 +72,12 @@ TEST(cuda_parallel_scan, hillis_steel_uint64_t)
     {
         if (data[i] != cudares[i])
         {
-            std::cout<<data[i] << " "<<cudares[i]<<std::endl; 
+            std::cout<<data[i] << " "<<cudares[i]<<std::endl;
         }
-       ASSERT_TRUE( data[i] == cudares[i]);
+        ASSERT_TRUE( data[i] == cudares[i]);
     }
 }
-template<typename T,int BLOCK_SIZE>
+    template<typename T,int BLOCK_SIZE>
 void test_blelloc_block_scan()
 {
     std::vector<T > data;
@@ -88,9 +99,9 @@ void test_blelloc_block_scan()
     {
         if (data[i-1] != cudares[i])
         {
-            std::cout<<"ERROR index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl; 
+            std::cout<<"ERROR index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl;
         }
-       ASSERT_TRUE( data[i-1] == cudares[i]);
+        ASSERT_TRUE( data[i-1] == cudares[i]);
     }
 
 
@@ -167,20 +178,109 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
     }
 
 
-    std::cout<<std::log2(size)<<std::endl;
     auto ptr = data.data();
-    auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint>(ptr, size);
+    auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint,0>(ptr, size);
     inclusive_scan<lint>(data);
     for(int i =1; i < size; ++i)
     {
         if (data[i] != cudares[i])
         {
-            std::cout<<"ERROR index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl; 
+            std::cout<<"ERROR index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl;
         }
-       ASSERT_TRUE( data[i] == cudares[i]);
+        ASSERT_TRUE( data[i] == cudares[i]);
+    }
+}
+TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int_random_1 )
+{
+    using lint = uint32_t;
+    std::vector<lint > data;
+    std::vector<lint> original;
+    uint64_t size = rand() %(100000) ;
+    //uint64_t size = 1024 *16 ;
+
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        data[i] = rand() % 2 + 1;
+        original[i] = data[i];
+    }
+
+
+    auto ptr = data.data();
+    auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint,0>(ptr, size);
+    inclusive_scan<lint>(data);
+    for(int i =1; i < size; ++i)
+    {
+        if (data[i] != cudares[i])
+        {
+            std::cout<<"ERROR index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl;
+        }
+        ASSERT_TRUE( data[i] == cudares[i]);
     }
 }
 
+TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int_random_2 )
+{
+    using lint = uint32_t;
+    std::vector<lint > data;
+    std::vector<lint> original;
+    uint64_t size = rand() %(1000000) ;
+    //uint64_t size = 1024 *16 ;
+
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        data[i] = rand() % 2 + 1;
+        original[i] = data[i];
+    }
+
+
+    auto ptr = data.data();
+    auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint,0>(ptr, size);
+    inclusive_scan<lint>(data);
+    for(int i =1; i < size; ++i)
+    {
+        if (data[i] != cudares[i])
+        {
+            std::cout<<"ERROR index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl;
+        }
+        ASSERT_TRUE( data[i] == cudares[i]);
+    }
+}
+
+TEST(cuda_parallel_scan,steam_scan_exclusive_32_bit_int_random_2 )
+{
+    using lint = uint32_t;
+    std::vector<lint > data;
+    std::vector<lint> original;
+    uint64_t size = rand() %(1000000) ;
+    //uint64_t size = 1024 *16 ;
+
+    data.resize(size);
+    original.resize(size);
+    for (int i =0 ; i <size; ++i)
+    {
+        //data[i] = rand() % 2 + 1;
+        data[i] =  1;
+        original[i] = data[i];
+    }
+
+
+    auto ptr = data.data();
+    auto cudares = mg_gpgpu::parallel_stream_scan_alloc<lint,1>(ptr, size);
+    exclusive_scan<lint>(data);
+    for(int i =1; i < size; ++i)
+    {
+        //std::cout<<data[i]<<std::endl;
+        if (data[i] != cudares[i])
+        {
+            std::cout<<"ERROR index "<<i<< " "<<data[i] << " "<<cudares[i]<<std::endl;
+        }
+        ASSERT_TRUE( data[i] == cudares[i]);
+    }
+}
 //TEST(cuda_parallel_scan,steam_scan_inclusive_64_bit_int )
 //{
 //    using lint = unsigned long long int;
@@ -203,7 +303,7 @@ TEST(cuda_parallel_scan,steam_scan_inclusive_32_bit_int )
 //    {
 //        if (data[i] != cudares[i])
 //        {
-//            std::cout<<data[i] << " "<<cudares[i]<<std::endl; 
+//            std::cout<<data[i] << " "<<cudares[i]<<std::endl;
 //        }
 //       ASSERT_TRUE( data[i] == cudares[i]);
 //    }

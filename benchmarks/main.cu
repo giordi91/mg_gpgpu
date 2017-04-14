@@ -1,6 +1,6 @@
 #include <iostream>
-#include <parallel_reduce_benchmark.cu>
-#include <parallel_scan_benchmark.cu>
+#include "parallel_reduce_benchmark.cu"
+#include "parallel_scan_benchmark.cu"
 
 
 int main()

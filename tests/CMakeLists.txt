@@ -8,6 +8,7 @@ message("STATUS" "---- current cmake dir is ${CMAKE_CURRENT_SOURCE_DIR}")
 
 #add_subdirectory("../mg_gpgpu_core" "${CMAKE_CURRENT_BINARY_DIR}")
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/mg_gpgpu_core/include)
+INCLUDE_DIRECTORIES("/usr/local/include")
 
 get_property(dirs  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 foreach(dir ${dirs})
@@ -17,6 +18,7 @@ endforeach()
 if(UNIX AND NOT APPLE)
 	message(STATUS, "---- Currently building on UNIX system")
 endif()
+
 
 SET(CORE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 #find all the sources

@@ -1,8 +1,8 @@
-#include <gmock/gmock.h>
 #include <iostream>
-#include <mg_gpgpu_core/parallel_reduce.h>
 #include <vector>
 #include <cmath>
+#include <gmock/gmock.h>
+#include <mg_gpgpu_core/reduce.h>
 using namespace testing;
 
 using mg_gpgpu::parallel_reduce_shared_alloc;
@@ -18,8 +18,8 @@ TEST(cuda_parallel_reduce_shared,integer_numbers_from_1_to_n)
     {
         vec[i] = i+1; 
     }
-	unsigned int res = parallel_reduce_shared_alloc<unsigned int>(vec.data(), vec.size());
-	auto math_res = (size*(size +1) *0.5);
+    unsigned int res = parallel_reduce_shared_alloc<unsigned int>(vec.data(), vec.size());
+    auto math_res = (size*(size +1) *0.5);
     ASSERT_EQ(res , math_res );
 }
 
@@ -32,8 +32,8 @@ TEST(cuda_parallel_reduce_shared,integer_numbers_from_1_to_n_not_power_of_2)
     {
         vec[i] = i+1; 
     }
-	unsigned int res = parallel_reduce_shared_alloc<unsigned int>(vec.data(), vec.size());
-	auto math_res = (size*(size +1) *0.5);
+    unsigned int res = parallel_reduce_shared_alloc<unsigned int>(vec.data(), vec.size());
+    auto math_res = (size*(size +1) *0.5);
     ASSERT_EQ(res , math_res );
 }
 
@@ -42,14 +42,14 @@ TEST(cuda_parallel_reduce_shared,float_numbers_from_1_to_n)
     std::vector<float> vec; 
     unsigned int size (1024);
     vec.resize(size);
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         vec[i] = i+1; 
-		accum += float((i+1));
+        accum += float((i+1));
     }
-	float res= parallel_reduce_shared_alloc<float >(vec.data(), vec.size());
-	float math_res = (size*(size +1) *0.5);
+    float res= parallel_reduce_shared_alloc<float >(vec.data(), vec.size());
+    float math_res = (size*(size +1) *0.5);
     ASSERT_FLOAT_EQ(res , math_res );
 }
 
@@ -59,15 +59,15 @@ TEST(cuda_parallel_reduce_shared,float_numbers_random)
     unsigned int size (1024);
     vec.resize(size);
 
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         auto value = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		vec[i] = value;
-		accum += value;
+        vec[i] = value;
+        accum += value;
     }
 
-	float res= parallel_reduce_shared_alloc<float >(vec.data(), vec.size());
+    float res= parallel_reduce_shared_alloc<float >(vec.data(), vec.size());
     //ASSERT_FLOAT_EQ(res , accum );
     ASSERT_NEAR(res , accum, 0.001f );
 }
@@ -78,15 +78,15 @@ TEST(cuda_parallel_reduce_shared,float_numbers_random_not_power_of_2)
     unsigned int size (1121);
     vec.resize(size);
 
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         auto value = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		vec[i] = value;
-		accum += value;
+        vec[i] = value;
+        accum += value;
     }
 
-	float res= parallel_reduce_shared_alloc<float >(vec.data(), vec.size());
+    float res= parallel_reduce_shared_alloc<float >(vec.data(), vec.size());
     //ASSERT_FLOAT_EQ(res , accum );
     ASSERT_NEAR(res , accum, 0.001f );
 }
@@ -100,8 +100,8 @@ TEST(cuda_parallel_reduce_shuffle,integer_numbers_from_1_to_n)
     {
         vec[i] = i+1; 
     }
-	unsigned int res = parallel_reduce_shuffle_alloc<unsigned int>(vec.data(), vec.size());
-	auto math_res = (size*(size +1) *0.5);
+    unsigned int res = parallel_reduce_shuffle_alloc<unsigned int>(vec.data(), vec.size());
+    auto math_res = (size*(size +1) *0.5);
     ASSERT_EQ(res , math_res );
 }
 
@@ -114,8 +114,8 @@ TEST(cuda_parallel_reduce_shuffle, integer_numbers_from_1_to_n_not_power_of_2)
     {
         vec[i] = i+1; 
     }
-	unsigned int res = parallel_reduce_shuffle_alloc<unsigned int>(vec.data(), vec.size());
-	auto math_res = (size*(size +1) *0.5);
+    unsigned int res = parallel_reduce_shuffle_alloc<unsigned int>(vec.data(), vec.size());
+    auto math_res = (size*(size +1) *0.5);
     ASSERT_EQ(res , math_res );
 }
 
@@ -124,14 +124,14 @@ TEST(cuda_parallel_reduce_shuffle, float_numbers_from_1_to_n)
     std::vector<float> vec; 
     unsigned int size (1024);
     vec.resize(size);
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         vec[i] = i+1; 
-		accum += float((i+1));
+        accum += float((i+1));
     }
-	float res= parallel_reduce_shuffle_alloc<float >(vec.data(), vec.size());
-	float math_res = (size*(size +1) *0.5);
+    float res= parallel_reduce_shuffle_alloc<float >(vec.data(), vec.size());
+    float math_res = (size*(size +1) *0.5);
     ASSERT_FLOAT_EQ(res , math_res );
 }
 
@@ -141,15 +141,15 @@ TEST(cuda_parallel_reduce_shuffle,float_numbers_random)
     unsigned int size (1024);
     vec.resize(size);
 
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         auto value = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		vec[i] = value;
-		accum += value;
+        vec[i] = value;
+        accum += value;
     }
 
-	float res= parallel_reduce_shuffle_alloc<float >(vec.data(), vec.size());
+    float res= parallel_reduce_shuffle_alloc<float >(vec.data(), vec.size());
     //ASSERT_FLOAT_EQ(res , accum );
     ASSERT_NEAR(res , accum, 0.001f );
 }
@@ -160,15 +160,15 @@ TEST(cuda_parallel_reduce_shuffle,float_numbers_random_not_power_of_2)
     unsigned int size (1121);
     vec.resize(size);
 
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         auto value = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		vec[i] = value;
-		accum += value;
+        vec[i] = value;
+        accum += value;
     }
 
-	float res= parallel_reduce_shuffle_alloc<float >(vec.data(), vec.size());
+    float res= parallel_reduce_shuffle_alloc<float >(vec.data(), vec.size());
     ASSERT_FLOAT_EQ(res , accum );
 }
 
@@ -182,8 +182,8 @@ TEST(cuda_parallel_reduce_shuffle_atomic,integer_numbers_from_1_to_n)
     {
         vec[i] = i+1; 
     }
-	unsigned int res = parallel_reduce_shuffle_atomic_alloc<unsigned int>(vec.data(), vec.size());
-	auto math_res = (size*(size +1) *0.5);
+    unsigned int res = parallel_reduce_shuffle_atomic_alloc<unsigned int>(vec.data(), vec.size());
+    auto math_res = (size*(size +1) *0.5);
     ASSERT_EQ(res , math_res );
 }
 
@@ -196,8 +196,8 @@ TEST(cuda_parallel_reduce_shuffle_atomic, integer_numbers_from_1_to_n_not_power_
     {
         vec[i] = i+1; 
     }
-	unsigned int res = parallel_reduce_shuffle_alloc<unsigned int>(vec.data(), vec.size());
-	auto math_res = (size*(size +1) *0.5);
+    unsigned int res = parallel_reduce_shuffle_alloc<unsigned int>(vec.data(), vec.size());
+    auto math_res = (size*(size +1) *0.5);
     ASSERT_EQ(res , math_res );
 }
 
@@ -206,14 +206,14 @@ TEST(cuda_parallel_reduce_shuffle_atomic, float_numbers_from_1_to_n)
     std::vector<float> vec; 
     unsigned int size (1024);
     vec.resize(size);
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         vec[i] = i+1; 
-		accum += float((i+1));
+        accum += float((i+1));
     }
-	float res= parallel_reduce_shuffle_atomic_alloc<float >(vec.data(), vec.size());
-	float math_res = (size*(size +1) *0.5);
+    float res= parallel_reduce_shuffle_atomic_alloc<float >(vec.data(), vec.size());
+    float math_res = (size*(size +1) *0.5);
     ASSERT_FLOAT_EQ(res , math_res );
 }
 
@@ -223,15 +223,15 @@ TEST(cuda_parallel_reduce_shuffle_atomic,float_numbers_random)
     unsigned int size (1024);
     vec.resize(size);
 
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         auto value = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		vec[i] = value;
-		accum += value;
+        vec[i] = value;
+        accum += value;
     }
 
-	float res= parallel_reduce_shuffle_atomic_alloc<float >(vec.data(), vec.size());
+    float res= parallel_reduce_shuffle_atomic_alloc<float >(vec.data(), vec.size());
     ASSERT_FLOAT_EQ(res , accum );
 }
 
@@ -241,20 +241,20 @@ TEST(cuda_parallel_reduce_shuffle_atomic,float_numbers_random_not_power_of_2)
     unsigned int size (1921);
     vec.resize(size);
 
-	float accum=0;
+    float accum=0;
     for (int i =0; i <size;++i)
     {
         auto value = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-		vec[i] = value;
-		accum += value;
+        vec[i] = value;
+        accum += value;
     }
 
-	float res= parallel_reduce_shuffle_atomic_alloc<float >(vec.data(), vec.size());
+    float res= parallel_reduce_shuffle_atomic_alloc<float >(vec.data(), vec.size());
     ASSERT_NEAR(res , accum, 0.001f );
 
 }
 
-template<typename T>
+    template<typename T>
 void full_array_scan_serial( std::vector<T>& data)
 {
     auto size = data.size();
@@ -268,7 +268,7 @@ void full_array_scan_serial( std::vector<T>& data)
     }
 }
 
-template<typename T, int BLOCK_SIZE>
+    template<typename T, int BLOCK_SIZE>
 void run_increasing_reduce_test()
 {
     std::vector<T > data;
@@ -296,7 +296,7 @@ void run_increasing_reduce_test()
     }
 
 }
-template<typename T, int BLOCK_SIZE>
+    template<typename T, int BLOCK_SIZE>
 void run_random_reduce_test()
 {
     std::vector<T > data;
@@ -436,7 +436,7 @@ TEST(cuda_parallel_reduce,full_array_block_reduce_multi_block_1024 )
     T* d_in;
     gpuErrchkDebug(cudaMalloc( (void**)&d_in,  size*sizeof(T)));
     gpuErrchkDebug(cudaMemcpy( d_in, data.data(), size*sizeof(T), cudaMemcpyHostToDevice ));
-    
+
     //kicking only a single block, since this mainly for debugging purpose
     uint32_t threads = 1024;
     uint32_t blocks = size/1024;

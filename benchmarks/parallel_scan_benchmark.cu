@@ -63,7 +63,7 @@ void bench_scan_algs()
     cudaEventRecord(start);
     for (int i =0; i< ITERATIONS; ++i)
     {
-        mg_gpgpu::parallel_stream_scan<uint32_t,SENTINEL>(in,d_intermediate, size);
+        //mg_gpgpu::parallel_stream_scan<uint32_t,SENTINEL>(in,d_intermediate, size);
     }
 
     cudaEventRecord(stop);
