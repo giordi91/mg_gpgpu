@@ -1,6 +1,6 @@
 #include <iostream>
 #include <vector>
-#include <mg_gpgpu_core/parallel_reduce.h>
+#include <mg_gpgpu_core/reduce.h>
 
 using namespace mg_gpgpu;
 

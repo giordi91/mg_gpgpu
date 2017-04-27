@@ -62,12 +62,25 @@ namespace utils
  
     //TODO Make it grid size loop
     template<typename T> 
-    __global__ void copy(T* in , T* out, unsigned int count)
+    __global__ void copy_kernel(T *in, T *out, unsigned int count)
     {
         unsigned int tid =threadIdx.x + (blockDim.x * blockIdx.x);
         if( tid < count  )
         { out[tid] = in[tid]; }
     }
+
+    template <typename T>
+    void copy(T* d_in, T* d_out, unsigned int count)
+    {
+
+        unsigned int block_size= 1024;
+        //computing the block
+        uint32_t blocks = ((count%block_size) != 0)?(count/block_size) +1:
+                          (count/block_size);
+        copy_kernel<T><<<blocks,block_size>>>(d_in,d_out,count);
+
+    }
+
 
 
 
