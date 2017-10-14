@@ -1,3 +1,4 @@
+/*
 #include <gmock/gmock.h>
 #include <iostream>
 #include <mg_gpgpu_core/utils.h>
@@ -55,3 +56,5 @@ TEST(cuda_utils, zero_out_uint64_t)
     }
 
 }
+
+*/

@@ -4,5 +4,5 @@ project(${THIS_PROJECT})
 
 add_subdirectory(mg_gpgpu_core)
 add_subdirectory(tests)
-add_subdirectory(benchmarks)
-add_subdirectory(experiments)
+#add_subdirectory(benchmarks)
+#add_subdirectory(experiments)
