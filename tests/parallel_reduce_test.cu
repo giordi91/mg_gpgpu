@@ -5,9 +5,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-//#include <gmock/gmock.h>
 #include <mg_gpgpu_core/reduce.h>
-//using namespace testing;
 
 #include "catch.hpp"
 using mg_gpgpu::parallel_reduce_shared_alloc;
@@ -213,7 +211,7 @@ TEST_CASE("cuda_parallel_reduce_shuffle_atomic_integer_numbers_from_1_to_n_not_p
     }
     unsigned int res = parallel_reduce_shuffle_alloc<unsigned int>(vec.data(), vec.size());
     auto math_res = (size*(size +1) *0.5);
-    REQUIRE(res , math_res );
+    REQUIRE(res == math_res );
 }
 
 //TEST_CASE(cuda_parallel_reduce_shuffle_atomic, float_numbers_from_1_to_n)

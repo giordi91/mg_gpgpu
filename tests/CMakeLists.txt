@@ -19,10 +19,18 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/mg_gpgpu_core/include  ${CMAKE_CURRENT_S
 # As this is a public compile feature anything that links to 
 # particles will also build with -std=c++11
 
+SET(CORE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+#find all the sources
+message("STATUS" "---- source dir is:  ${CORE_SOURCE_DIR}")
+file(GLOB SOURCES ${CORE_SOURCE_DIR}/*.cu)
+message("STATUS" "Found sources:")
+foreach(ff ${SOURCES})
+    message("STATUS" \t${ff})
+endforeach()
  
 
  
-add_executable(${THIS_PROJECT} parallel_reduce_test.cu)
+add_executable(${THIS_PROJECT} ${SOURCES})
 target_compile_features(${THIS_PROJECT} PUBLIC cxx_std_11) 
 set_property(TARGET ${THIS_PROJECT} 
              PROPERTY CUDA_SEPARABLE_COMPILATION ON)

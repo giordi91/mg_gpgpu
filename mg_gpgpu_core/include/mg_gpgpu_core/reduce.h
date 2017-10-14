@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <mg_gpgpu_core/utils.h>
+#include <cuda_runtime_api.h>
 namespace mg_gpgpu
 {
 

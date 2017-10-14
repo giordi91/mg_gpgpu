@@ -29,6 +29,7 @@ namespace mg_gpgpu
                 { out[tid] = in[tid]; }
             }
         }
+
     template<typename T>
         inline T* parallel_scan_hillis_steel(T* d_in, T* d_out, uint32_t count)
         {
@@ -92,6 +93,7 @@ namespace mg_gpgpu
         {
             parallel_scan_blelloch_kernel<T>(d_in, lg, count,blockIdx.x );
         }
+
 
     template<typename T, T SENTINEL_VALUE>
         __device__ void intra_block_barrier(int tid,
@@ -336,12 +338,8 @@ namespace mg_gpgpu
         }
 
     template<typename T>
-        std::unique_ptr<T[]> parallel_scan_blelloch_alloc(T* data, uint32_t count)
-        {
-            T* d_in;
-            gpuErrchkDebug(cudaMalloc( (void**)&d_in,  count*sizeof(T)));
-            gpuErrchkDebug(cudaMemcpy( d_in, data, count*sizeof(T), cudaMemcpyHostToDevice ));
-
+	void parallel_scan_blelloch (T* d_in, uint32_t count)
+	{
             //one block with given size of element, this kernel is supposed to work on one block only
             uint32_t threads = count;
             uint32_t blocks = 1;
@@ -354,6 +352,17 @@ namespace mg_gpgpu
 
             mg_gpgpu::utils::zero_out_kernel<T><<<1,1>>>(d_in+ (count -1),1);
             parallel_scan_blelloch_wrap_kernel<T><<<blocks, threads>>>(d_in, lg, count);
+
+	}
+
+    template<typename T>
+        std::unique_ptr<T[]> parallel_scan_blelloch_alloc(T* data, uint32_t count)
+        {
+            T* d_in;
+            gpuErrchkDebug(cudaMalloc( (void**)&d_in,  count*sizeof(T)));
+            gpuErrchkDebug(cudaMemcpy( d_in, data, count*sizeof(T), cudaMemcpyHostToDevice ));
+
+			parallel_scan_blelloch<T>(d_in, count);
 
             auto ptr =std::unique_ptr<T[]>(new T[count]);
             gpuErrchkDebug(cudaMemcpy( ptr.get(), d_in, count*sizeof(T), cudaMemcpyDeviceToHost));
