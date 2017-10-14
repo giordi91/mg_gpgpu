@@ -1,4 +1,3 @@
-
 #define CATCH_CONFIG_MAIN // This tells Catch to provide a main() - only do this
                           // in one cpp file
 
@@ -265,7 +264,8 @@ template <typename T> void full_array_scan_serial(std::vector<T> &data) {
   uint32_t lg = log2(float(size));
   for (int i = 0; i < lg; i++) {
     for (int id = 0; id < (size - 1); id += pow(2, (i + 1))) {
-      data[id + pow(2, (i + 1)) - 1] += data[id + pow(2, i) - 1];
+      data[id + static_cast<uint64_t>(pow(2, (i + 1))) - 1] +=
+          data[id + static_cast<uint64_t>(pow(2, i)) - 1];
     }
   }
 }
@@ -290,7 +290,7 @@ template <typename T, int BLOCK_SIZE> void run_increasing_reduce_test() {
       std::cout << "index " << i << " " << data[i] << " " << res.get()[i]
                 << std::endl;
     }
-    REQUIRE(data[i], res.get()[i]);
+    REQUIRE(data[i] == res.get()[i]);
   }
 }
 
@@ -408,7 +408,8 @@ TEST_CASE("cuda_parallel_reduce_full_array_block_reduce_multi_block_1024",
   using T = uint32_t;
   std::vector<T> data;
   std::vector<T> original;
-  //allocating 10 blocks and making sure each of the 10 blocks is reduced successifully
+  // allocating 10 blocks and making sure each of the 10 blocks is reduced
+  // successifully
   uint64_t size = 1024 * 10;
 
   data.resize(size);
