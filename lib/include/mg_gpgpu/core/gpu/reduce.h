@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include <mg_gpgpu_core/utils.h>
+#include <mg_gpgpu/utils.h>
 #include <cuda_runtime_api.h>
 namespace mg_gpgpu
 {

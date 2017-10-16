@@ -1,7 +1,7 @@
 #include "catch.hpp"
 #include <fstream>
 #include <iostream>
-#include <mg_gpgpu_core/scan.h>
+#include <mg_gpgpu/core/gpu/scan.h>
 #include <vector>
 
 // commented for the time being, need to find a way to make a custom target for

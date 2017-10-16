@@ -1,6 +1,6 @@
 #include <cmath>
 #include <iostream>
-#include <mg_gpgpu_core/compact.h>
+#include <mg_gpgpu/core/gpu/compact.h>
 #include <vector>
 
 #include "catch.hpp"

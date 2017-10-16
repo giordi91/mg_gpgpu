@@ -1,5 +1,5 @@
 #include <iostream>
-#include <mg_gpgpu_core/utils.h>
+#include <mg_gpgpu/utils.h>
 #include <vector>
 #include "catch.hpp"
 

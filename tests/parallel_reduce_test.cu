@@ -3,7 +3,7 @@
 
 #include <cmath>
 #include <iostream>
-#include <mg_gpgpu_core/reduce.h>
+#include <mg_gpgpu/core/gpu/reduce.h>
 #include <vector>
 
 #include "catch.hpp"
